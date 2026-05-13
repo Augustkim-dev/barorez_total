@@ -397,3 +397,9 @@ define('PRINT_SERVER_URL', 'http://127.0.0.1:3000');
 
 // HMAC 서명 헤더명
 define('PRINT_HMAC_HEADER_NAME', 'X-Signature');
+
+// Client 인증 토큰 해싱 salt (Phase 2 D008) — 64자 hex 권장
+//   토큰 등록: sha256(plain_token + salt) 저장
+//   토큰 검증: 동일 salt 로 해시 후 hash_equals 비교
+//   회전: 전체 client 토큰 재발급 필요 시점에 (현장 운영 협의)
+define('PRINT_CLIENT_TOKEN_SALT', '');
