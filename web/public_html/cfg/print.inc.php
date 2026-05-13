@@ -100,12 +100,39 @@ function build_print_payload(array $order, string $printer_type, array $items): 
 
 /**
  * Server C로 Webhook 발송. fire-and-forget — 실패해도 throw 안 함.
+ *
+ * 본문 형식 (Phase 2 D007 에서 보강 — Server C 가 별도 GET 안 해도 되도록 jobs 상세 동봉):
+ *   {
+ *     "shop_id": 42,
+ *     "jobs": [
+ *       { "job_id": 12345, "printer_type": "kitchen", "payload": { ... } },
+ *       ...
+ *     ]
+ *   }
  */
 function send_print_webhook(array $job_ids, int $shop_id): void {
+    global $DB;
     if (empty($job_ids)) return;
     if (!defined('PRINT_SERVER_URL') || PRINT_SERVER_URL === '') return;
 
-    $body = json_encode(['job_ids' => $job_ids, 'shop_id' => $shop_id]);
+    // print_job_t 에서 printer_type / payload 페치
+    $rows = $DB->where('job_idx', $job_ids, 'IN')
+               ->get('print_job_t', null, 'job_idx, printer_type, payload');
+    if (empty($rows)) {
+        error_log('[print] webhook skip: jobs not found ids=' . implode(',', $job_ids));
+        return;
+    }
+
+    $jobs = [];
+    foreach ($rows as $r) {
+        $jobs[] = [
+            'job_id'       => (int)$r['job_idx'],
+            'printer_type' => $r['printer_type'],
+            'payload'      => json_decode($r['payload'] ?? '{}', true) ?: new \stdClass(),
+        ];
+    }
+
+    $body = json_encode(['shop_id' => $shop_id, 'jobs' => $jobs], JSON_UNESCAPED_UNICODE);
     $sig  = compute_hmac_signature($body);
     $url  = rtrim(PRINT_SERVER_URL, '/') . '/webhook/print';
     $hdrname = defined('PRINT_HMAC_HEADER_NAME') ? PRINT_HMAC_HEADER_NAME : 'X-Signature';
