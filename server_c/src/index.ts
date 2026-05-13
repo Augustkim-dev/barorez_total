@@ -4,10 +4,9 @@ import { config } from './config.js';
 import { logger } from './logger.js';
 import { captureRawBody, verifyHmac } from './middleware/hmac.js';
 import { startRetryWorker, stopRetryWorker } from './queue/retry.js';
+import { healthRouter } from './routes/health.js';
 import { webhookRouter } from './routes/webhook.js';
-import { getStats as getQueueStats } from './store/sqlite.js';
 import { attachWebSocketServer } from './ws/server.js';
-import { getStats as getClientStats } from './ws/clients.js';
 
 const app = express();
 
@@ -23,15 +22,7 @@ app.use(
   webhookRouter,
 );
 
-// 임시 헬스체크 (D010 에서 본격 구현 예정)
-app.get('/health', (_req, res) => {
-  res.json({
-    ok: true,
-    uptime_sec: Math.floor(process.uptime()),
-    queue: getQueueStats(),
-    connections: getClientStats(),
-  });
-});
+app.use('/health', healthRouter);
 
 const httpServer = createServer(app);
 const wss = attachWebSocketServer(httpServer);
