@@ -3,6 +3,7 @@ import express from 'express';
 import { config } from './config.js';
 import { logger } from './logger.js';
 import { captureRawBody, verifyHmac } from './middleware/hmac.js';
+import { startRetryWorker, stopRetryWorker } from './queue/retry.js';
 import { webhookRouter } from './routes/webhook.js';
 import { getStats as getQueueStats } from './store/sqlite.js';
 import { attachWebSocketServer } from './ws/server.js';
@@ -37,10 +38,12 @@ const wss = attachWebSocketServer(httpServer);
 
 httpServer.listen(config.PORT, '127.0.0.1', () => {
   logger.info({ port: config.PORT, env: config.NODE_ENV }, '[server] Server C 기동 (HTTP + WS)');
+  startRetryWorker();
 });
 
 const shutdown = (signal: string): void => {
   logger.info({ signal }, '[server] 종료 신호 수신');
+  stopRetryWorker();
   for (const client of wss.clients) {
     try {
       client.close(1001, 'server shutdown');

@@ -98,7 +98,8 @@ const stmtGetByJobId = db.prepare(`SELECT * FROM jobs WHERE job_id = ?`);
 
 const stmtGetRetryDue = db.prepare(`
   SELECT * FROM jobs
-  WHERE status = 'queued' AND next_retry_at IS NOT NULL AND next_retry_at <= CURRENT_TIMESTAMP
+  WHERE status = 'queued' AND next_retry_at IS NOT NULL
+    AND datetime(next_retry_at) <= datetime('now')
   ORDER BY next_retry_at ASC
 `);
 

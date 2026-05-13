@@ -2,6 +2,7 @@ import type { IncomingMessage, Server as HttpServer } from 'node:http';
 import type { Socket } from 'node:net';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { logger } from '../logger.js';
+import { handleAck } from './ack.js';
 import { handleNewConnection } from './auth.js';
 import { unregister, type ClientConnection } from './clients.js';
 import { ClientMessageSchema } from './protocol.js';
@@ -79,16 +80,7 @@ async function handleAndRun(socket: WebSocket): Promise<void> {
         missedPongs = 0;
         break;
       case 'ack':
-        // D009 에서 본격 구현 — 본 단계에서는 로깅만
-        logger.info(
-          {
-            event: 'ack_received_stub',
-            client_id: conn.client_id,
-            job_id: validated.data.job_id,
-            status: validated.data.status,
-          },
-          '[ws] ACK 수신 (stub, D009 에서 처리)',
-        );
+        void handleAck(validated.data, conn);
         break;
       case 'auth':
         // 이미 인증 완료된 연결에서 재차 auth 메시지는 무시

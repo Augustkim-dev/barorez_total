@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { tryDispatch } from '../dispatcher.js';
 import { logger } from '../logger.js';
-import { upsertJob } from '../store/sqlite.js';
+import { getByJobId, upsertJob } from '../store/sqlite.js';
 
 /**
  * PHP 측 cfg/print.inc.php 의 send_print_webhook() 가 보내는 형식:
@@ -9,9 +10,9 @@ import { upsertJob } from '../store/sqlite.js';
  *   Header: X-Signature: <HMAC-SHA256 hex of raw body>
  *   Body  : { "shop_id": 42, "jobs": [{ "job_id": 12345, "printer_type": "kitchen", "payload": {...} }, ...] }
  *
- * D007: 본 단계에서는 jobs 를 SQLite 에 적재만. 실제 Push (디스패치) 는 D008/D009.
- *
- * 참고: PHP 측이 D007 변경에서 jobs 배열을 동봉하도록 보강됨 (Phase 1 D006 시점 형식 {job_ids, shop_id} 에서 변경).
+ * D007: SQLite 에 적재만.
+ * D009: 적재 후 즉시 dispatcher 시도 — 매장 client 가 접속 중이면 곧바로 Push.
+ *       오프라인이면 status='queued' 유지 → 재접속 동기화에서 처리.
  */
 
 const PrinterTypeSchema = z.enum(['kitchen', 'counter', 'bar']);
@@ -40,6 +41,7 @@ webhookRouter.post('/print', (req, res) => {
   const { shop_id, jobs } = parsed.data;
   let inserted = 0;
   let duplicate = 0;
+  let dispatched = 0;
 
   for (const job of jobs) {
     const result = upsertJob({
@@ -50,12 +52,20 @@ webhookRouter.post('/print', (req, res) => {
     });
     if (result.inserted) inserted++;
     else duplicate++;
+
+    if (result.inserted) {
+      const row = getByJobId(job.job_id);
+      if (row) {
+        const clientId = tryDispatch(row);
+        if (clientId !== null) dispatched++;
+      }
+    }
   }
 
   logger.info(
-    { event: 'webhook_received', shop_id, total: jobs.length, inserted, duplicate },
-    '[webhook] jobs 적재',
+    { event: 'webhook_received', shop_id, total: jobs.length, inserted, duplicate, dispatched },
+    '[webhook] jobs 적재 + 즉시 디스패치 시도',
   );
 
-  res.status(200).json({ ok: true, inserted, duplicate });
+  res.status(200).json({ ok: true, inserted, duplicate, dispatched });
 });
