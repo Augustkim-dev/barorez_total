@@ -1,0 +1,29 @@
+{
+  "name": "https://utopiakorea.com/",
+  "name": "utopiakorea",
+  "short_name": "utopiakorea",
+  "description": "utopiakorea",
+  "start_url": "/?utm_source=homescreen",
+  "scope": "/",
+  "display": "browser",
+  "orientation": "portrait",
+  "background_color": "#F9331E",
+  "theme_color": "#F9331E",
+
+  "icons": [
+  
+    {
+       "src": "/design/assets/images/img/app_ico192.png?v=1",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+   
+    {
+       "src": "/design/assets/images/img/app_ico512.png?v=1",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+
+  
+}

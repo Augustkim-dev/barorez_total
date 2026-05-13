@@ -1,0 +1,95 @@
+# ============================================================
+# 맛집바로 (barorez) — .gitignore
+# Phase 2 시작 시점 (D007) 작성
+# ============================================================
+
+# -----------------------------
+# OS / 에디터
+# -----------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.iml
+
+# -----------------------------
+# 환경 변수 (모든 곳)
+# -----------------------------
+.env
+.env.local
+.env.*.local
+*.env
+
+# -----------------------------
+# Server C (Node.js + TypeScript) — Phase 2 신규
+# -----------------------------
+server_c/node_modules/
+server_c/dist/
+server_c/data/
+server_c/logs/
+server_c/coverage/
+server_c/*.log
+
+# -----------------------------
+# PHP — 라이브 세션 (절대 commit 금지)
+# -----------------------------
+web/public_html/sessions/sess_*
+!web/public_html/sessions/.gitkeep
+
+# -----------------------------
+# PHP — 업로드 자산 (디렉토리 구조만 추적)
+# -----------------------------
+web/public_html/data/cache/*
+!web/public_html/data/cache/.gitkeep
+web/public_html/data/logs/*
+!web/public_html/data/logs/.gitkeep
+web/public_html/data/menu/*
+!web/public_html/data/menu/.gitkeep
+web/public_html/data/qr/*
+!web/public_html/data/qr/.gitkeep
+web/public_html/data/qr_tmp/*
+!web/public_html/data/qr_tmp/.gitkeep
+web/public_html/data/review/*
+!web/public_html/data/review/.gitkeep
+web/public_html/data/shop/*
+!web/public_html/data/shop/.gitkeep
+
+# -----------------------------
+# 백업 / 레거시 (CLAUDE.md 참고)
+# -----------------------------
+*.bak
+*_old.php
+*_old.html
+*_backup.php
+
+# -----------------------------
+# 로그
+# -----------------------------
+*.log
+logs/
+error_log
+
+# -----------------------------
+# Composer (vendor/ 는 이미 commit되어 있음 — CLAUDE.md 명시)
+# -----------------------------
+# vendor/  ← intentionally NOT ignored (체크인됨)
+
+# -----------------------------
+# 임시 / 진단 파일
+# -----------------------------
+_print_hook_diag.php
+test.sh
+test_retry.sh
+*.tmp
+
+# -----------------------------
+# 평문 secret 포함 — 추적 제외
+# 새 환경 셋업: cfg/config.inc.example.php → cfg/config.inc.php 복사 후 'CHANGE_ME_*' 값 채울 것
+# 새 환경 셋업: cfg/db.inc.example.php → cfg/db.inc.php 복사 후 'CHANGE_ME_*' 값 채울 것
+# -----------------------------
+web/public_html/cfg/config.inc.php
+web/public_html/cfg/db.inc.php

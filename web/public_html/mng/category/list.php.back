@@ -1,0 +1,688 @@
+<?php
+include $_SERVER['DOCUMENT_ROOT']."/mng/head.inc.php";
+$chk_menu='13';
+$chk_sub_menu='1';
+include $_SERVER['DOCUMENT_ROOT']."/mng/inc/header.menu.inc.php";
+//include $_SERVER['DOCUMENT_ROOT']."/mng/inc/header.sidebar.inc.php";
+
+
+?>
+<!-- PAGE CONTENT CONTAINER -->
+<div class="content" id="content">
+    <!-- PAGE HEADING -->
+    <div class="page-heading">
+        <div class="page-heading__container">
+            <div class="icon">
+                <span class="li-picture3"></span>
+            </div>
+            <h1 class="title">카테고리</h1>
+            <p class="caption">
+                차량 카테고리 등록, 수정, 삭제 등을 할 수 있습니다.
+            </p>
+        </div>
+        <nav aria-label="breadcrumb" role="navigation">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="index.php">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="#">카테고리관리</a></li>
+                <li class="breadcrumb-item active">카테고리</li>
+            </ol>
+        </nav>
+    </div>
+    <!-- //END PAGE HEADING -->
+    <div class="container-fluid">
+        <div class="card margin-bottom-0">
+            <div class="card-body">
+                <!-- 순서 변경 버튼과 검색 폼을 포함하는 컨테이너 -->
+
+                <div class="form-row " style="justify-content: flex-end; gap: 4px; width: 100%;">
+                    <form method="post" enctype="multipart/form-data" action="./upload.php" id="excelUploadForm">
+                        <label for="excelUpload" class="btn btn-info">엑셀 업로드</label>
+                        <input type="file" id="excelUpload" name="excel" accept=".xls,.xlsx" style="display: none" required onchange="document.getElementById('excelUploadForm').submit();">
+                    </form>
+                    <input type="hidden" id="depthCount" value="5" min="1" max="10" />
+                    <button onclick="downloadExcel()" class="btn btn-secondary" style="height: 40px;">엑셀 다운로드</button>
+                </div>
+
+                <style>
+                    .depth-container { display: flex; gap: 10px; min-height: 500px; overflow: auto}
+                    .depth-column {
+                        flex: 1;
+                        min-width: 300px;
+                        border: 1px solid #ccc;
+                        padding: 10px;
+                    }
+                    .depth-title {
+                        font-weight: bold;
+                        margin-bottom: 10px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding-bottom: 10px;
+                        border-bottom: 1px dotted #ccc;
+                    }
+                    .item {
+                        padding: 5px;
+                        border: 1px solid #ddd;
+                        margin-bottom: 5px;
+                        cursor: pointer;
+                        background-color: #f9f9f9;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                    }
+                    .item.selected {
+                        background-color: #d0ebff;
+                        font-weight: bold;
+                    }
+                    .item-buttons button {
+                        margin-top: 5px;
+                    }
+                    .add-btn {
+                        margin-top: 10px;
+                        color: blue;
+                        cursor: pointer;
+                    }
+                    #output {
+                        margin-top: 10px;
+                        background: #f4f4f4;
+                        padding: 10px;
+                        width: 100%;
+                        max-height: 300px;
+                        overflow: hidden;
+                    }
+                </style>
+
+                <div id="categoryArea" class="depth-container"></div>
+
+<!--                <pre id="output" class="mt-4" style="display: none">-->
+                    <form method="post" name="frm_form" id="output" style="display: none" action="./update.php" target="hidden_ifrm" enctype="multipart/form-data">
+                        <input type="hidden" name="act" id="act" value="imgUpload" />
+                        <input type="hidden" name="mf_id" id="mf_id" value="" />
+                        <input type="hidden" name="mf_img" id="mf_img" value="<?=$row['mf_img']?>" />
+                        <div class="card-body">
+                            <h4 id="rw-fe-basic">제조사</h4>
+                            <div class="form-group row">
+                                <label for="ct_show" class="col-sm-2 col-form-label">아이콘</label>
+                                <div class="col-sm-10">
+                                    <div class="upload-container">
+                                        <div class="upload-box" id="uploadAgyLogoTrigger"
+                                             data-existing-image="<?php echo !empty($row['mf_img']) ? $category_url.$row_agy['agy_logo1'] : ''; ?>">
+                                            <div class="upload-content">
+                                                <div class="plus">+</div>
+                                                <div class="text">Upload</div>
+                                            </div>
+                                            <button type="button" class="remove-btn">×</button>
+                                        </div>
+                                    </div>
+                                    <input type="file" class="filepond d-none" name="imgUpload" id="imgUpload" accept="image/*">
+                                    <!-- 삭제 플래그를 위한 hidden 필드 추가 -->
+                                    <input type="hidden" name="mf_img_delete" id="mf_img_delete" value="N">
+
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group row justify-content-center">
+                            <button type="submit" class="btn btn-secondary" >확인</button>
+                        </div>
+                    </form>
+<!--                </pre>-->
+
+                <script>
+                    let categoryData = [];
+                    let selectedItems = {};
+                    let dbName = '';
+                    // let uploader;
+                    const depthNames = ['제조사', '모델', '서브모델', '등급', '서브등급'];
+
+                    function getDbNameByDepth(depth) {
+                        const map = {
+                            0: 'manufacturers_t',
+                            1: 'model_t',
+                            2: 'model_variants_t',
+                            3: 'class_t',
+                            4: 'class_variants_t',
+                        };
+                        return map[depth] || '';
+                    }
+
+                    function createDepthColumns() {
+                        const count = parseInt(document.getElementById('depthCount').value);
+                        const area = document.getElementById('categoryArea');
+                        area.innerHTML = '';
+                        categoryData = [];
+                        selectedItems = {};
+                        for (let i = 0; i < count; i++) {
+                            categoryData.push([]);
+                            const column = document.createElement('div');
+                            column.className = 'depth-column';
+                            column.dataset.depth = i;
+                            column.innerHTML = `
+      <div class="depth-title">
+        <span>${depthNames[i] || `${i + 1} 뎁스`}</span>
+        <div>
+            <button class="btn py-1" onclick="sortItems(${i})">정렬</button>
+            <div class="btn btn-info margin-right-1 py-1" onclick="addItem(${i})">+ 카테고리 추가</div>
+        </div>
+      </div>
+      <div class="depth-list" id="depthList${i}"></div>
+<!--      <div class="add-btn btn btn-info margin-right-5" onclick="addItem(${i})">+ 카테고리 추가</div>-->
+    `;
+                            area.appendChild(column);
+                        }
+                        updateOutput();
+                    }
+
+                    function generateId() {
+                        return Date.now() + Math.random().toString(36).substr(2, 5);
+                    }
+
+                    function addItem(depth) {
+                        if (depth > 0 && !selectedItems[depth - 1]) {
+                            alert(`${depthNames[depth - 1] || depth + ' 뎁스'}를 먼저 선택하세요.`);
+                            return;
+                        }
+
+                        let name = prompt(`${depthNames[depth] || depth + 1 + ' 뎁스'} 항목명을 입력하세요`);
+                        if (!name) return;
+
+                        let nameOnly = name;
+                        let startYear = null;
+                        let endYear = null;
+                        if (depth === 2) { // 서브모델
+                            startYear = prompt("연식 시작년도 (예: 2015)");
+                            if (!startYear) return;
+                            endYear = prompt("연식 종료년도 (예: 2020)");
+                            if (!endYear) return;
+                            nameOnly = name;
+                            name += ` (${startYear} ~ ${endYear})`;
+                        }
+
+                        const parentId = depth === 0 ? null : selectedItems[depth - 1].id;
+                        const id = generateId();
+                        const newItem = { id, name, nameOnly, parentId, startYear, endYear };
+                        const parentName = depth === 0 ? null : selectedItems[depth - 1].nameOnly || selectedItems[depth - 1].name;
+                        const Data = {id, nameOnly, parentName, startYear, endYear };
+                        dbName = getDbNameByDepth(depth);
+
+                        $.ajax({
+                            url: './update.php',
+                            method: 'POST',
+                            data: {
+                                act: 'write',
+                                db: dbName,
+                                data: Data
+                            },
+                            dataType: 'json',
+                            success: function(response) {
+                            },
+                            error: function(xhr, status, error) {
+                                // 에러 상세 정보 출력
+                                console.error('Status:', status);
+                                console.error('Error:', error);
+                                console.error('Response:', xhr.responseText);
+
+                                try {
+                                    const errorResponse = JSON.parse(xhr.responseText);
+                                    alert(errorResponse.message || '오류가 발생했습니다. 관리자에게 문의해주세요.');
+                                } catch(e) {
+                                    alert('서버 응답 처리 중 오류가 발생했습니다: ' + xhr.responseText);
+                                }
+                            }
+                        });
+
+                        categoryData[depth].push(newItem);
+                        selectedItems[depth] = newItem
+                        renderDepth(depth);
+                        updateOutput();
+                    }
+
+                    function editItem(depth, id) {
+                        const item = categoryData[depth].find(i => i.id === parseInt(id));
+
+                        if (!item) return;
+                        let currentName = '';
+                        if (depth === 2) {
+                            // 기존 카테고리명에서 연식 정보 제거 (정규식)
+                            const nameOnly = item.name.replace(/\s*\(\d{4}\s*~\s*\d{4}\)/, '').trim();
+                            const mvStart = item.mv_start || '';
+                            const mvEnd = item.mv_end || '';
+
+                            const newName = prompt('수정할 항목명을 입력하세요', nameOnly);
+                            if (!newName) return;
+
+                            const newStart = prompt('연식 시작년도 (예: 2018)', mvStart);
+                            const newEnd = prompt('연식 종료년도 (예: 2024)', mvEnd);
+                            if (!newStart || !newEnd) {
+                                alert("연식 정보가 누락되었습니다.");
+                                return;
+                            }
+                            currentName = nameOnly;
+                            item.name = `${newName} (${newStart} ~ ${newEnd})`;
+                            item.nameOnly = newName;
+                            item.mv_start = newStart;
+                            item.mv_end = newEnd;
+                        } else {
+                            const newName = prompt('수정할 항목명을 입력하세요', item.name);
+                            if (!newName) return;
+                            currentName = item.name;
+                            item.name = newName;
+                            item.nameOnly = newName;
+                        }
+
+                        let nameOnly = item.nameOnly;
+                        let parentId = item.parentId;
+                        let startYear = item.mv_start;
+                        let endYear = item.mv_end;
+
+                        const Data = {id, currentName, nameOnly, parentId, startYear, endYear };
+                        dbName = getDbNameByDepth(depth);
+
+                        $.ajax({
+                            url: './update.php',
+                            method: 'POST',
+                            data: {
+                                act: 'update',
+                                db: dbName,
+                                data: Data
+                            },
+                            dataType: 'json',
+                            success: function(response) {
+                            },
+                            error: function(xhr, status, error) {
+                                // 에러 상세 정보 출력
+                                console.error('Status:', status);
+                                console.error('Error:', error);
+                                console.error('Response:', xhr.responseText);
+
+                                try {
+                                    const errorResponse = JSON.parse(xhr.responseText);
+                                    alert(errorResponse.message || '오류가 발생했습니다. 관리자에게 문의해주세요.');
+                                } catch(e) {
+                                    alert('서버 응답 처리 중 오류가 발생했습니다: ' + xhr.responseText);
+                                }
+                            }
+                        });
+
+                        renderDepth(depth);
+                        updateOutput();
+                    }
+
+
+                    function renderDepth(depth) {
+                        const listEl = document.getElementById(`depthList${depth}`);
+                        listEl.innerHTML = '';
+                        const items = categoryData[depth];
+
+                        const parentId = depth === 0 ? null : selectedItems[depth - 1]?.id;
+                        const parentName = depth === 0 ? null : selectedItems[depth - 1]?.nameOnly || selectedItems[depth - 1]?.name;
+
+                        items?.forEach(item => {
+                            const match = (depth === 0)
+                                || (item.parentId === parentId)  // 로컬에서 추가한 항목용
+                                || (item.parentId === parentName); // DB에서 불러온 항목용
+
+                            if (!match) {
+                                // 디버깅 로그
+                                console.log(`❌ Skipped: ${item.name} (item.parentId: ${item.parentId}, match 기준: ${parentId} or ${parentName})`);
+                                return;
+                            }
+
+                            const itemEl = document.createElement('div');
+                            itemEl.className = 'item';
+                            itemEl.innerHTML = `
+      <span>${item.name}</span>
+      <div class="item-buttons">
+        <button onclick="editItem(${depth}, '${item.id}')" class="btn btn-secondary py-1">수정</button>
+        <button onclick="deleteItem(${depth}, '${item.id}')" class="btn btn-gray py-1">삭제</button>
+      </div>
+    `;
+
+                            if (selectedItems[depth]?.id === item.id) {
+                                itemEl.classList.add('selected');
+                            }
+
+                            itemEl.onclick = () => {
+                                selectedItems[depth] = item;
+                                for (let i = depth + 1; i < categoryData.length; i++) {
+                                    delete selectedItems[i];
+                                    categoryData[i] = [];
+                                    renderDepth(i);
+                                }
+
+                                // if(depth === 0){
+                                //     $('#output').show();
+                                //     $('#mf_id').val(item.id);
+                                //     $('#rw-fe-basic').text(`${item.name} 제조사`);
+                                //     ImgView(item.id);
+                                // }
+
+
+                                renderDepth(depth);
+                                fetchChildren(depth + 1, item.id);
+                            };
+
+                            listEl.appendChild(itemEl);
+                        });
+                    }
+
+                    function deleteItem(depth, id) {
+                        const hasChild = categoryData[depth+1]?.some(i => i.parentId === parseInt(id));
+
+                        if (hasChild) {
+                            alert('하위 항목이 존재하여 삭제할 수 없습니다.');
+                            return;
+                        }
+                        dbName = getDbNameByDepth(depth);
+
+                        $.ajax({
+                            url: './update.php',
+                            method: 'POST',
+                            data: {
+                                act: 'delete',
+                                db: dbName,
+                                data: {id}
+                            },
+                            dataType: 'json',
+                            success: function(response) {
+                                console.log(response);
+                                categoryData[depth] = categoryData[depth+1]?.filter(i => i.id !== id);
+
+                                if (selectedItems[depth]?.id === id) {
+                                    delete selectedItems[depth];
+                                }
+
+                                renderDepth(depth);
+                                updateOutput();
+                            },
+                            error: function(xhr, status, error) {
+                                // 에러 상세 정보 출력
+                                console.error('Status:', status);
+                                console.error('Error:', error);
+                                console.error('Response:', xhr.responseText);
+
+                                try {
+                                    const errorResponse = JSON.parse(xhr.responseText);
+                                    alert(errorResponse.message || '오류가 발생했습니다. 관리자에게 문의해주세요.');
+                                } catch(e) {
+                                    alert('서버 응답 처리 중 오류가 발생했습니다: ' + xhr.responseText);
+                                }
+                            }
+                        });
+                    }
+
+                    function sortItems(depth) {
+                        categoryData[depth].sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
+                        renderDepth(depth);
+                        updateOutput();
+                    }
+
+                    function updateOutput() {
+                        const allData = categoryData.flat();
+                        // document.getElementById('output').textContent = JSON.stringify(allData, null, 2);
+                    }
+
+                    function fetchChildren(depth, parentId) {
+                        $.ajax({
+                            url: './update.php',
+                            method: 'POST',
+                            data: {
+                                act: 'list',
+                                depth: depth,
+                                parentId: parentId
+                            },
+                            dataType: 'json',
+                            success: function (response) {
+                                if(response.success) {
+                                    const items = response.items.map(row => ({
+                                        id: row.id,
+                                        name: row.mv_start && row.mv_end
+                                            ? `${row.name} (${row.mv_start} ~ ${row.mv_end})`
+                                            : row.name,
+                                        nameOnly: row.name,
+                                        parentId: parentId,
+                                        startYear: row.mv_start || null,
+                                        endYear: row.mv_end || null,
+                                    }));
+
+                                    const nextDepth = depth;
+                                    if (!categoryData[nextDepth]) categoryData[nextDepth] = [];
+                                    categoryData[nextDepth].push(...items);
+                                    renderDepth(nextDepth);
+                                    updateOutput();
+                                }
+                            },
+                            error: function (xhr, status, error) {
+                                // 에러 상세 정보 출력
+                                console.error('Status:', status);
+                                console.error('Error:', error);
+                                console.error('Response:', xhr.responseText);
+
+                                try {
+                                    const errorResponse = JSON.parse(xhr.responseText);
+                                    alert(errorResponse.message || '오류가 발생했습니다. 관리자에게 문의해주세요.');
+                                } catch (e) {
+                                    alert('서버 응답 처리 중 오류가 발생했습니다: ' + xhr.responseText);
+                                }
+                            }
+                        });
+
+                    }
+
+                    function loadInitialManufacturers() {
+                        fetchChildren(0, null);
+                    }
+
+                    // 페이지 로드시 또는 createDepthColumns 이후 호출
+                    window.onload = function () {
+                        createDepthColumns(); // 뎁스 생성 후
+                        loadInitialManufacturers(); // 제조사 호출
+                    };
+
+                    // 초기 실행
+                    createDepthColumns();
+
+
+                    function downloadExcel() {
+                        $.ajax({
+                            url: './download.php',
+                            method: 'POST',
+                            xhrFields: {
+                                responseType: 'blob'
+                            },
+                            success: function(data, status, xhr) {
+                                const disposition = xhr.getResponseHeader('Content-Disposition');
+                                let filename = 'category.xlsx';
+
+                                // 파일 이름 추출 (Content-Disposition: attachment; filename="...")
+                                if (disposition && disposition.indexOf('filename=') !== -1) {
+                                    const matches = /filename="?([^"]+)"?/.exec(disposition);
+                                    if (matches && matches[1]) {
+                                        filename = decodeURIComponent(matches[1]);
+                                    }
+                                }
+
+                                // Blob 다운로드 처리
+                                const blob = new Blob([data], {
+                                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                                });
+                                const link = document.createElement('a');
+                                link.href = window.URL.createObjectURL(blob);
+                                link.download = filename;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            },
+                            error: function(xhr, status, error) {
+                                console.error('Status:', status);
+                                console.error('Error:', error);
+                                console.error('Response:', xhr.responseText);
+
+                                try {
+                                    const errorResponse = JSON.parse(xhr.responseText);
+                                    alert(errorResponse.message || '오류가 발생했습니다. 관리자에게 문의해주세요.');
+                                } catch(e) {
+                                    alert('서버 응답 처리 중 오류가 발생했습니다: ' + xhr.responseText);
+                                }
+                            }
+                        });
+                    }
+
+                    document.addEventListener('DOMContentLoaded', function() {
+                        // FileUploader 초기화
+                        const uploader = createImageUploader({
+                            constraints: {
+                                imgUpload: {
+                                    maxFileSize: 5 * 1024 * 1024,
+                                    allowedFileTypes: ['image/jpeg', 'image/png', 'image/gif'],
+                                    imageMinWidth: 100,
+                                    imageMinHeight: 100,
+                                    imageMaxWidth: 4000,
+                                    imageMaxHeight: 3000,
+                                    errorMessages: {
+                                        fileSize: '이미지는 5MB를 초과할 수 없습니다.',
+                                        fileType: '허용된 파일 형식: JPG, PNG, GIF',
+                                        imageSize: '이미지 크기는 100x100px에서 4000x3000px 사이여야 합니다.'
+                                    }
+                                }
+                            },
+                            filePatterns: {
+                                imgUpload: {
+                                    triggerPrefix: 'uploadAgyLogoTrigger'
+                                }
+                            }
+                        });
+
+                        // 폼 검증 및 제출
+                        $("#output").validate({
+                            submitHandler: function(form) {
+                                const formData = new FormData(form);
+
+                                const file = document.getElementById('mf_img')?.files?.[0];
+                                if (file) {
+                                    formData.append('imgUpload', file);
+                                }
+
+                                $.ajax({
+                                    url: './update.php',
+                                    type: 'POST',
+                                    data: formData,
+                                    processData: false,
+                                    contentType: false,
+                                    success: function(response) {
+                                        if(response.success) {
+                                            alert(response.message);
+                                            // location.href = './list.php';
+                                        }
+                                    },
+                                    error: function() {
+                                        $('#splinner_modal').modal('hide');
+                                        alert('처리 중 오류가 발생했습니다.');
+                                    }
+                                });
+                                return false;
+                            },
+                        });
+
+                        uploader.init();
+                    });
+
+                    function ImgView(id) {
+                        const category_url = "<?= $category_url ?>";
+                        const triggerEl = document.getElementById('uploadAgyLogoTrigger');
+
+                        $.ajax({
+                            url: './update.php',
+                            method: 'POST',
+                            data: {
+                                act: 'imgView',
+                                id: id,
+                            },
+                            dataType: 'json',
+                            success: function (response) {
+                                triggerEl.innerHTML = '';
+
+                                if (response?.data?.mf_img) {
+                                    const imageUrl = category_url + response.data.mf_img + '?v=' + Date.now();
+
+                                    // 이미지 추가
+                                    const img = document.createElement('img');
+                                    img.src = imageUrl;
+                                    img.classList.add('preview-image');
+                                    img.setAttribute('data-fancybox', '');
+                                    img.setAttribute('data-src', imageUrl);
+
+                                    triggerEl.appendChild(img);
+                                    triggerEl.classList.add('preview-box');
+
+                                    // 삭제 버튼 추가
+                                    const btn = document.createElement('div');
+                                    btn.classList.add('remove-btn');
+                                    btn.innerHTML = '<span>×</span>';
+                                    btn.addEventListener('click', function (e) {
+                                        e.stopPropagation();
+
+                                        // 삭제 처리
+                                        triggerEl.innerHTML = ''; // 초기화
+                                        const uploadContent = createUploadContent();
+                                        triggerEl.appendChild(uploadContent);
+                                        triggerEl.classList.remove('preview-box');
+                                    });
+
+                                    triggerEl.appendChild(btn);
+
+                                    // Fancybox 초기화
+                                    if (typeof Fancybox !== 'undefined') {
+                                        Fancybox.bind('[data-fancybox]', {
+                                            dragToClose: false,
+                                        });
+                                    }
+
+                                } else {
+                                    // 이미지 없을 경우 기본 업로드 UI 복원
+                                    const uploadContent = createUploadContent();
+                                    triggerEl.appendChild(uploadContent);
+                                }
+                            },
+                            error: function (xhr, status, error) {
+                                // 에러 상세 정보 출력
+                                console.error('Status:', status);
+                                console.error('Error:', error);
+                                console.error('Response:', xhr.responseText);
+
+                                try {
+                                    const errorResponse = JSON.parse(xhr.responseText);
+                                    alert(errorResponse.message || '오류가 발생했습니다. 관리자에게 문의해주세요.');
+                                } catch (e) {
+                                    alert('서버 응답 처리 중 오류가 발생했습니다: ' + xhr.responseText);
+                                }
+                            }
+                        });
+
+                    }
+                    // 기본 업로드 UI를 다시 생성하는 함수
+                    function createUploadContent() {
+                        const content = document.createElement('div');
+                        content.classList.add('upload-content');
+
+                        const plus = document.createElement('div');
+                        plus.classList.add('plus');
+                        plus.innerText = '+';
+
+                        const text = document.createElement('div');
+                        text.classList.add('text');
+                        text.innerText = 'Upload';
+
+                        content.appendChild(plus);
+                        content.appendChild(text);
+
+                        return content;
+                    }
+                </script>
+            </div>
+
+        </div>
+    </div>
+    <?php
+    include $_SERVER['DOCUMENT_ROOT']."/mng/foot.inc.php";
+    ?>

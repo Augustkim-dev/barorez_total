@@ -1,0 +1,344 @@
+.clearfix::after {
+    display: block;
+    clear: both;
+    content: "";
+}
+/*
+.d-none{
+    display: none !important;
+}
+.d-inline {
+    display: inline !important;
+}
+.d-inline-block {
+    display: inline-block !important;
+}
+.d-block {
+    display: block !important;
+}
+*/
+.d-table {
+    display: table !important;
+}
+.d-table-row {
+    display: table-row !important;
+}
+.d-table-cell {
+    display: table-cell !important;
+}
+
+.jconfirm .jconfirm-box div.jconfirm-content-pane .jconfirm-content {
+    overflow: auto;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.searchByStatus + .select2-container {
+    width: 120px !important;
+    margin-right: 5px
+}
+
+.searchByText {
+    width: 160px !important;
+    /*margin-right: 5px*/
+}
+
+.ct_icon{
+    width: 38px;
+    height: 38px;
+    margin: -15px
+}
+
+.input-text-box{
+    line-height: 22px;
+    padding: 8px;
+    width: 100%;
+    height: 40px;
+    color: #495057;
+    border: 1px solid #ced4da;
+    border-radius: .25rem;
+    background-color: rgba(0, 0, 0, .05);
+}
+
+/*
+지도
+*/
+/*
+.sch_location_wrap .frm_info {
+    text-align: center;
+    padding: 6px 5px;
+    font-size: 13px;
+    font-weight: 300;
+    color: #111;
+    position: absolute;
+    width: 70%;
+    left: 0;
+    right: 0;
+    top: 30px;
+    margin: 0 auto;
+    z-index: 10;
+    border-radius: 20px;
+    background-color: #d3e8ff;
+    box-shadow: 0px 0px 5px #00000030;
+}
+
+.icon_marker {
+    position: absolute;
+    top: calc(50% - 20px);
+    left:  calc(50% - 14px);
+    transform: translate(-50%, -50%);
+    width:10px;
+    z-index: 9;
+}
+
+.map_gps{
+    color: #ff8282;
+}
+*/
+
+/*
+toast 색상 변경
+ */
+.toast-success,
+.toast-error,
+.toast-info,
+.toast-warning {
+    background-color: #22212f !important;
+}
+
+/* 호버 시 약간 어두워지는 효과 */
+.toast:hover {
+    background-color: #1a1922 !important;
+}
+
+/* 프로그레스 바 색상 */
+.toast-progress {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/*
+파일 업로드
+*/
+.upload-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 0px;
+}
+
+.upload-box {
+    width: 120px;
+    height: 120px;
+    border: 1px dashed #ccc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+}
+
+.upload-box.hidden {
+    display: none;
+}
+
+.upload-box .plus {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.upload-box .text {
+    color: #333;
+}
+
+.upload-box .upload-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.upload-box .preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.preview-box {
+    width: 120px;
+    height: 120px;
+    border: 1px solid #ddd;
+    position: relative;
+    overflow: hidden;
+    cursor: move;
+}
+
+.preview-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.preview-box a {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.remove-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(255, 255, 255, 0.8);
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.sortable-ghost {
+    opacity: 0.5;
+}
+
+.filepond--root {
+    display: none;
+}
+
+.vivio-preview-box {
+    width: 120px;
+    height: 120px;
+    border: 1px solid #ddd;
+    position: relative;
+    overflow: hidden;
+    cursor: move;
+}
+
+.vivio-preview-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.vivio-preview-box a {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+
+.error-message {
+    color: red;
+    font-size: 12px;
+    position: absolute;
+    bottom: -20px;
+    left: 0;
+}
+
+.form-control-color {
+    width: 3rem;
+    height: calc(1.5em + .75rem + 2px);
+    padding: .375rem;
+}
+
+
+
+.taste {
+    margin-top: 30px;
+}
+.taste .flavor_con {
+    margin-top: 15px;
+}
+.taste .flavor_con .list {
+    gap: 15px;
+    margin-bottom: 10px;
+    padding: 15px;
+    border-radius: 15px;
+}
+.taste .flavor_con .list:last-child {
+    margin-bottom: 0;
+}
+.taste .flavor_con .list .progress_con {
+    width: 100%;
+}
+.taste .flavor_con .list .progress_con .txt_con {
+    margin-bottom: 15px;
+}
+
+
+.v-color {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: white;
+    margin-right: 5px;
+}
+
+.choice-taste-bar {
+    width: 100%;
+    display: flex;
+    gap: 2px;
+}
+
+.choice-taste-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap:10px;
+    flex: 1 1  20%;
+    border: none;
+}
+
+.choice-taste-btn:focus,
+.choice-taste-btn:focus-visible {
+    outline: none;
+    box-shadow: none;
+}
+
+
+
+.choice-taste-btn .ct-color {
+    display: inline-block;
+    width: 100%;
+    height: 15px;
+    background-color: #EAEAEE;
+    border-radius: 0;
+}
+
+.choice-taste-btn.active .ct-color {
+    background-color: #87090A; /* 예시 색상 */
+}
+
+.choice-taste-btn:first-child .ct-color {
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+}
+
+.choice-taste-btn:last-child .ct-color {
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+
+.choice-taste-btn .ct-txt {
+    width: 100%;
+    color: #85838F;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+
+canvas.dashboard-chart {
+    position: relative;
+    width: 100%;
+    height: 300px;
+}
+
