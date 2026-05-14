@@ -1,0 +1,12 @@
+{
+  "printer_type": "counter",
+  "job_id": 1002,
+  "payload": {
+    "table_name": "포장1",
+    "order_time": "2026-05-14 14:25:11",
+    "items": [
+      {"name": "아메리카노(HOT)", "qty": 2, "options": ["샷 추가"]},
+      {"name": "치즈케이크", "qty": 1, "options": []}
+    ]
+  }
+}

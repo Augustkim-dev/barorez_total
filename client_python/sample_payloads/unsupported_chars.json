@@ -1,0 +1,12 @@
+{
+  "printer_type": "kitchen",
+  "job_id": 1099,
+  "payload": {
+    "table_name": "5번",
+    "order_time": "2026-05-14 21:00:00",
+    "items": [
+      {"name": "테스트 메뉴", "qty": 1, "options": []}
+    ],
+    "memo": "CP949 인코딩 불가 문자 시험 — 😀 € ☆"
+  }
+}

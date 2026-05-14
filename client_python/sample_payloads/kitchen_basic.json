@@ -1,0 +1,14 @@
+{
+  "printer_type": "kitchen",
+  "job_id": 1001,
+  "payload": {
+    "table_name": "3번",
+    "order_time": "2026-05-14 14:23:01",
+    "items": [
+      {"name": "김치찌개", "qty": 1, "options": ["맵게", "공기밥 추가"]},
+      {"name": "계란말이", "qty": 2, "options": []},
+      {"name": "사이다 500ml", "qty": 1, "options": []}
+    ],
+    "memo": "포크 추가요"
+  }
+}
