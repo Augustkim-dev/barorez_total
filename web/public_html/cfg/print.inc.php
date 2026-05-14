@@ -81,20 +81,39 @@ function create_print_jobs_for_order(int $order_idx): array {
 
 /**
  * PRD §7.2 형식 페이로드. 개인정보 제외 (PRD §11.4).
+ *
+ * items[].unit_price 와 summary.total 은 영수증 금액 표시 용도.
+ * orders_t.ct_snapshot 의 unit_price 와 summary 를 그대로 전달.
+ * 클라이언트 (Python formatter) 는 가격 필드가 있을 때만 가격 컬럼·
+ * 합계 라인을 출력 — 없으면 수량만 표시 (하위 호환).
  */
 function build_print_payload(array $order, string $printer_type, array $items): array {
+    $snapshot = json_decode($order['ct_snapshot'] ?? '{}', true) ?: [];
+    $summary  = $snapshot['summary'] ?? null;
+
     return [
         'printer_type' => $printer_type,
         'table_name'   => $order['ot_table'] ?? null,
         'order_time'   => $order['ot_wdate'] ?? date('Y-m-d H:i:s'),
         'items'        => array_map(function($i) {
-            return [
+            $line = [
                 'name'    => $i['menu_name'] ?? '',
                 'qty'     => (int)($i['quantity'] ?? 1),
                 'options' => $i['options'] ?? [],
             ];
+            if (isset($i['unit_price'])) {
+                $line['unit_price'] = (int)$i['unit_price'];
+            }
+            return $line;
         }, $items),
         'memo'         => $order['ot_notes'] ?? '',
+        // summary.total / sub_total / discount 만 클라이언트로 전달.
+        // null 이면 클라이언트가 items 합산으로 자동 계산.
+        'summary'      => is_array($summary) ? [
+            'sub_total' => isset($summary['sub_total']) ? (int)$summary['sub_total'] : null,
+            'discount'  => isset($summary['discount'])  ? (int)$summary['discount']  : null,
+            'total'     => isset($summary['total'])     ? (int)$summary['total']     : null,
+        ] : null,
     ];
 }
 

@@ -1,0 +1,19 @@
+{
+  "printer_type": "kitchen",
+  "job_id": 1010,
+  "payload": {
+    "table_name": "5번",
+    "order_time": "2026-05-14 19:30:00",
+    "items": [
+      {"name": "동태탕", "qty": 2, "options": [], "unit_price": 15000},
+      {"name": "라모아(지리)", "qty": 1, "options": [], "unit_price": 18000},
+      {"name": "제육두루치기", "qty": 4, "options": ["맵게"], "unit_price": 22000},
+      {"name": "장수막걸리", "qty": 1, "options": [], "unit_price": 4000}
+    ],
+    "summary": {
+      "sub_total": 140000,
+      "discount": 0,
+      "total": 140000
+    }
+  }
+}

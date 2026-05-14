@@ -142,6 +142,7 @@ async def _handle_print_job(
             width=cfg.printer.width,
             escpos_codepage_id=cfg.printer.escpos_codepage_id,
             right_margin=cfg.printer.right_margin,
+            body_font_size=cfg.printer.body_font_size,
         )
     except PrintError as e:
         log.error("job_id=%d format failed [%s] %s", job_id, e.code, e.message)

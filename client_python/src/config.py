@@ -14,6 +14,7 @@ class PrinterConfig:
     width: int
     escpos_codepage_id: int | None
     right_margin: int
+    body_font_size: str  # 'normal' | 'double_height' | 'double_wh'
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,7 @@ def load(path: str | Path) -> AppConfig:
         width=int(p_sec.get("width", "48")),
         escpos_codepage_id=int(raw_id) if raw_id else None,
         right_margin=int(p_sec.get("right_margin", "2")),
+        body_font_size=p_sec.get("body_font_size", "double_height").strip() or "double_height",
     )
 
     if cp.has_section("server"):

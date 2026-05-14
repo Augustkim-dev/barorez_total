@@ -74,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         width = cfg.width
         escpos_id = cfg.escpos_codepage_id
         right_margin = cfg.right_margin
+        body_font_size = cfg.body_font_size
         printer_name = cfg.name
     else:
         if not args.dump:
@@ -84,7 +85,9 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 2
-        codepage, width, escpos_id, right_margin, printer_name = "cp949", 48, None, 2, ""
+        codepage, width, escpos_id, right_margin, body_font_size, printer_name = (
+            "cp949", 48, None, 2, "double_height", "",
+        )
 
     try:
         data = formatter_mod.build(
@@ -95,6 +98,7 @@ def main(argv: list[str] | None = None) -> int:
             width=width,
             escpos_codepage_id=escpos_id,
             right_margin=right_margin,
+            body_font_size=body_font_size,
         )
     except PrintError as e:
         print(f"format failed [{e.code}]: {e.message}", file=sys.stderr)

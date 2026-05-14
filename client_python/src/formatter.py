@@ -5,9 +5,15 @@ PRD §7.2 payload 스펙에 맞춰 print_job 메시지를 바이트로 변환한
 {
   "table_name": "3번",
   "order_time": "2026-05-12 14:23:01",
-  "items": [{"name": "...", "qty": 1, "options": ["맵게"]}],
-  "memo": "..."  # optional
+  "items": [
+    {"name": "...", "qty": 1, "options": ["맵게"], "unit_price": 8000}
+  ],
+  "memo": "...",       # optional
+  "summary": {"total": 20000}  # optional — 없으면 items 합산
 }
+
+가격 필드(`unit_price`, `summary.total`)는 모두 선택. 없으면 메뉴 라인에서
+수량만 표시하고 합계 라인 생략 — 기존 페이로드와 100% 하위 호환.
 """
 
 from __future__ import annotations
@@ -24,7 +30,7 @@ LF = b"\x0a"
 INIT = ESC + b"@"
 ALIGN_LEFT = ESC + b"a" + bytes([0])
 ALIGN_CENTER = ESC + b"a" + bytes([1])
-DOUBLE_HEIGHT = GS + b"!" + bytes([0x01])  # 세로 2배
+DOUBLE_HEIGHT = GS + b"!" + bytes([0x01])  # 세로 2배 (width 1x)
 DOUBLE_WH = GS + b"!" + bytes([0x11])  # 가로·세로 2배
 NORMAL_SIZE = GS + b"!" + bytes([0x00])
 BOLD_ON = ESC + b"E" + bytes([1])
@@ -37,13 +43,24 @@ PRINTER_TYPE_LABEL = {
     "bar": "바",
 }
 
+# 본문 폰트 크기 옵션
+BODY_SIZE_MAP = {
+    "normal": (NORMAL_SIZE, 1),
+    "double_height": (DOUBLE_HEIGHT, 1),  # 폭은 그대로, 세로만 2배
+    "double_wh": (DOUBLE_WH, 2),  # 가로·세로 모두 2배 — 유효 폭 절반
+}
+
+# 가격 표시 컬럼 폭
+_QTY_COL_W = 3  # "999"
+_PRICE_COL_W = 7  # "999,999"
+_COL_GAP = 1
+
 
 def _display_width(s: str) -> int:
-    """한글·CJK 는 2폭, 그 외는 1폭으로 계산. wcwidth 외부 의존 회피."""
+    """한글·CJK 는 2폭, 그 외는 1폭으로 계산."""
     w = 0
     for ch in s:
         cp = ord(ch)
-        # 한글 음절 + 한글 자모 + CJK 통합 한자 + 전각 기호
         if (
             0x1100 <= cp <= 0x115F
             or 0x2E80 <= cp <= 0x303E
@@ -68,12 +85,16 @@ def _pad_right(s: str, width: int) -> str:
     return s + (" " * pad if pad > 0 else "")
 
 
+def _pad_left(s: str, width: int) -> str:
+    pad = width - _display_width(s)
+    return (" " * pad if pad > 0 else "") + s
+
+
 def _separator(width: int) -> str:
     return "-" * width
 
 
 def _truncate(s: str, width: int) -> str:
-    """폭 초과 시 폭 기준으로 자른다."""
     if _display_width(s) <= width:
         return s
     out = []
@@ -96,6 +117,36 @@ def _encode(text: str, codepage: str) -> bytes:
         ) from e
 
 
+def _money(n: int | float) -> str:
+    try:
+        return f"{int(n):,}"
+    except (TypeError, ValueError):
+        return ""
+
+
+def _resolve_prices(items: Iterable[dict[str, Any]]) -> tuple[bool, int]:
+    """items 중 unit_price 가 있는 항목이 하나라도 있으면 가격 컬럼 활성화.
+    반환: (has_price, computed_total)
+    """
+    has_price = False
+    total = 0
+    for item in items:
+        up = item.get("unit_price")
+        if up is None:
+            up = item.get("price")
+        if up is None:
+            continue
+        try:
+            up_int = int(up)
+        except (TypeError, ValueError):
+            continue
+        if up_int > 0:
+            has_price = True
+            qty = int(item.get("qty") or 0)
+            total += up_int * qty
+    return has_price, total
+
+
 def build(
     payload: dict[str, Any],
     *,
@@ -105,24 +156,25 @@ def build(
     width: int = 48,
     escpos_codepage_id: int | None = None,
     right_margin: int = 2,
+    body_font_size: str = "double_height",
 ) -> bytes:
     """페이로드 dict 를 ESC/POS 바이트열로 변환.
 
-    right_margin 만큼 우측을 비워두기 위해 모든 라인의 유효 폭을
-    `width - right_margin` 으로 줄여 출력한다 (구분선·정렬 모두 동일 적용).
+    body_font_size:
+      - 'normal'        — 본문 표준 크기
+      - 'double_height' — 본문 세로 2배 (폭 동일, 권장 기본값)
+      - 'double_wh'     — 본문 가로·세로 2배 (유효 폭 절반)
     """
-    effective_width = max(1, width - max(0, right_margin))
+    body_cmd, width_divisor = BODY_SIZE_MAP.get(body_font_size, BODY_SIZE_MAP["double_height"])
+    effective_width = max(1, (width - max(0, right_margin)) // width_divisor)
 
     buf = bytearray()
     buf += INIT
 
-    # 펌웨어 측 코드페이지 선택 (옵션)
     if escpos_codepage_id is not None:
         buf += ESC + b"t" + bytes([escpos_codepage_id & 0xFF])
 
-    width = effective_width
-
-    # 헤더 — 출력 종류 (가운데, 가로·세로 2배)
+    # 헤더 — 가운데, 가로·세로 2배 (본문 크기와 별개, 항상 큼)
     label = PRINTER_TYPE_LABEL.get(printer_type, printer_type)
     buf += ALIGN_CENTER
     buf += DOUBLE_WH
@@ -130,6 +182,9 @@ def build(
     buf += LF
     buf += NORMAL_SIZE
     buf += LF
+
+    # 본문 시작 — body_font_size 적용
+    buf += body_cmd
 
     # 테이블 + 시각 (가운데)
     table = str(payload.get("table_name") or "-")
@@ -140,45 +195,102 @@ def build(
         buf += _encode(order_time, codepage)
         buf += LF
 
-    # 구분선
+    # 본문 정렬 좌측
     buf += ALIGN_LEFT
-    buf += _encode(_separator(width), codepage)
+    buf += _encode(_separator(effective_width), codepage)
     buf += LF
 
-    # 메뉴 라인 (좌측 정렬)
-    items: Iterable[dict[str, Any]] = payload.get("items") or []
+    items: list[dict[str, Any]] = list(payload.get("items") or [])
+    has_price, computed_total = _resolve_prices(items)
+
+    # 메뉴 라인
     for item in items:
         name = str(item.get("name") or "")
         qty = int(item.get("qty") or 0)
-        qty_str = f" x{qty}"
-        name_col = width - _display_width(qty_str)
-        # 메뉴명은 진하게
+        qty_str = str(qty)
+
+        if has_price:
+            up = item.get("unit_price") if item.get("unit_price") is not None else item.get("price")
+            try:
+                up_int = int(up) if up is not None else 0
+            except (TypeError, ValueError):
+                up_int = 0
+            line_total_str = _money(up_int * qty) if up_int > 0 else ""
+
+            # 메뉴명 컬럼 = 유효폭 - 수량(3) - 가격(7) - 갭(2)
+            name_col = effective_width - _QTY_COL_W - _PRICE_COL_W - (_COL_GAP * 2)
+            if name_col < 4:
+                name_col = max(1, effective_width - _QTY_COL_W - _COL_GAP)
+                line = (
+                    _pad_right(_truncate(name, name_col), name_col)
+                    + (" " * _COL_GAP)
+                    + _pad_left(qty_str, _QTY_COL_W)
+                )
+            else:
+                line = (
+                    _pad_right(_truncate(name, name_col), name_col)
+                    + (" " * _COL_GAP)
+                    + _pad_left(qty_str, _QTY_COL_W)
+                    + (" " * _COL_GAP)
+                    + _pad_left(line_total_str, _PRICE_COL_W)
+                )
+        else:
+            # 가격 없음 — 메뉴명 + 수량만
+            name_col = effective_width - _QTY_COL_W - _COL_GAP
+            line = (
+                _pad_right(_truncate(name, name_col), name_col)
+                + (" " * _COL_GAP)
+                + _pad_left(qty_str, _QTY_COL_W)
+            )
+
         buf += BOLD_ON
-        line = _pad_right(_truncate(name, name_col), name_col) + qty_str
         buf += _encode(line, codepage)
         buf += BOLD_OFF
         buf += LF
-        # 옵션 들여쓰기
+
+        # 옵션 — 들여쓰기
         for opt in item.get("options") or []:
-            opt_line = "  - " + _truncate(str(opt), width - 4)
+            opt_line = "  - " + _truncate(str(opt), effective_width - 4)
             buf += _encode(opt_line, codepage)
             buf += LF
 
+    # 합계 (가격이 있을 때만)
+    summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+    total: int | None = None
+    if summary and "total" in summary:
+        try:
+            total = int(summary["total"])
+        except (TypeError, ValueError):
+            total = None
+    if total is None and has_price:
+        total = computed_total
+    if total is not None and total > 0:
+        buf += _encode(_separator(effective_width), codepage)
+        buf += LF
+        total_label = "합계"
+        total_str = _money(total)
+        gap = effective_width - _display_width(total_label) - len(total_str)
+        gap = max(1, gap)
+        buf += BOLD_ON
+        buf += _encode(total_label + (" " * gap) + total_str, codepage)
+        buf += BOLD_OFF
+        buf += LF
+
     # 메모
-    memo = (payload.get("memo") or "").strip() if isinstance(payload.get("memo"), str) else ""
+    memo_raw = payload.get("memo")
+    memo = memo_raw.strip() if isinstance(memo_raw, str) else ""
     if memo:
-        buf += _encode(_separator(width), codepage)
+        buf += _encode(_separator(effective_width), codepage)
         buf += LF
         buf += BOLD_ON
         buf += _encode("[메모]", codepage)
         buf += BOLD_OFF
         buf += LF
-        # 메모는 폭 단위로 줄바꿈
         line = ""
         line_w = 0
         for ch in memo:
             ch_w = _display_width(ch)
-            if line_w + ch_w > width:
+            if line_w + ch_w > effective_width:
                 buf += _encode(line, codepage)
                 buf += LF
                 line = ch
@@ -191,17 +303,17 @@ def build(
             buf += LF
 
     # 푸터
-    buf += _encode(_separator(width), codepage)
+    buf += _encode(_separator(effective_width), codepage)
     buf += LF
     if job_id is not None:
         buf += ALIGN_CENTER
         buf += _encode(f"job #{job_id}", codepage)
         buf += LF
     buf += ALIGN_LEFT
-    # 마지막 여백
-    buf += LF + LF + LF
 
-    # 컷
+    # 본문 크기 복원 + 여백 + cut
+    buf += NORMAL_SIZE
+    buf += LF + LF + LF
     buf += CUT_PARTIAL
 
     return bytes(buf)
