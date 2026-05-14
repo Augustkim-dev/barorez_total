@@ -1,3 +1,4 @@
-# Phase 3 D012 — 단독 출력 단위는 stdlib + pywin32 만 필요.
-# D013 이후 (WS 클라이언트) 시점에 websockets 등 추가.
+# Phase 3 D012 — 단독 출력 단위는 stdlib + pywin32.
+# Phase 3 D013 — WS 클라이언트 시점에 websockets 추가.
 pywin32>=306
+websockets>=12.0

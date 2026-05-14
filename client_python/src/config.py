@@ -1,4 +1,4 @@
-"""config.ini 로더. D012 범위 — printer 섹션만 다룬다."""
+"""config.ini 로더."""
 
 from __future__ import annotations
 
@@ -17,8 +17,28 @@ class PrinterConfig:
 
 
 @dataclass(frozen=True)
+class ServerConfig:
+    ws_url: str
+    http_base: str
+
+
+@dataclass(frozen=True)
+class ClientConfig:
+    client_idx: int
+    token: str
+    capabilities: tuple[str, ...]
+    app_version: str
+
+
+@dataclass(frozen=True)
 class AppConfig:
+    server: ServerConfig
+    client: ClientConfig
     printer: PrinterConfig
+
+
+def _split_csv(raw: str) -> tuple[str, ...]:
+    return tuple(s.strip() for s in raw.split(",") if s.strip())
 
 
 def load(path: str | Path) -> AppConfig:
@@ -29,14 +49,34 @@ def load(path: str | Path) -> AppConfig:
     cp = configparser.ConfigParser()
     cp.read(p, encoding="utf-8")
 
-    section = cp["printer"]
-    raw_id = section.get("escpos_codepage_id", "").strip()
-    return AppConfig(
-        printer=PrinterConfig(
-            name=section["name"].strip(),
-            codepage=section.get("codepage", "cp949").strip(),
-            width=int(section.get("width", "48")),
-            escpos_codepage_id=int(raw_id) if raw_id else None,
-            right_margin=int(section.get("right_margin", "2")),
-        )
+    p_sec = cp["printer"]
+    raw_id = p_sec.get("escpos_codepage_id", "").strip()
+    printer = PrinterConfig(
+        name=p_sec["name"].strip(),
+        codepage=p_sec.get("codepage", "cp949").strip(),
+        width=int(p_sec.get("width", "48")),
+        escpos_codepage_id=int(raw_id) if raw_id else None,
+        right_margin=int(p_sec.get("right_margin", "2")),
     )
+
+    if cp.has_section("server"):
+        s_sec = cp["server"]
+        server = ServerConfig(
+            ws_url=s_sec.get("ws_url", "").strip(),
+            http_base=s_sec.get("http_base", "").strip(),
+        )
+    else:
+        server = ServerConfig(ws_url="", http_base="")
+
+    if cp.has_section("client"):
+        c_sec = cp["client"]
+        client = ClientConfig(
+            client_idx=int(c_sec.get("client_idx", "0")),
+            token=c_sec.get("token", "").strip(),
+            capabilities=_split_csv(c_sec.get("capabilities", "")),
+            app_version=c_sec.get("app_version", "").strip() or "unknown",
+        )
+    else:
+        client = ClientConfig(client_idx=0, token="", capabilities=(), app_version="unknown")
+
+    return AppConfig(server=server, client=client, printer=printer)
