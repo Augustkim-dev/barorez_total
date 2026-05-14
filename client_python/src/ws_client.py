@@ -19,16 +19,33 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 import websockets
 from websockets.exceptions import ConnectionClosed
 
-from . import formatter, printer
+from . import formatter, logger as logger_mod, printer
 from .config import AppConfig
 from .errors import PrintError, UnknownPrintError
 from .logger import get as get_logger
 from .state import State
+
+# 상태 콜백 — tray UI 가 받아 아이콘 색·툴팁 갱신.
+StatusCallback = Callable[[str, str], None]
+STATUS_CONNECTING = "connecting"
+STATUS_CONNECTED = "connected"
+STATUS_DISCONNECTED = "disconnected"
+STATUS_AUTH_FAILED = "auth_failed"
+STATUS_PRINT_FAILED = "print_failed"
+
+
+def _emit(cb: StatusCallback | None, status: str, detail: str = "") -> None:
+    if cb is None:
+        return
+    try:
+        cb(status, detail)
+    except Exception:  # pragma: no cover — tray 콜백 오류는 ws 루프를 막지 않음
+        log.exception("status callback failed")
 
 log = get_logger("barorez.ws")
 
@@ -93,6 +110,7 @@ async def _handle_print_job(
     ws: websockets.WebSocketClientProtocol,
     cfg: AppConfig,
     state: State,
+    on_status: StatusCallback | None,
 ) -> None:
     job_id = int(msg["job_id"])
     printer_type = str(msg.get("printer_type") or "kitchen")
@@ -108,6 +126,9 @@ async def _handle_print_job(
             job_id=job_id,
             status="printed",
             printed_at=prev_printed_at or _iso_now(),
+        )
+        logger_mod.record(
+            job_id=job_id, printer_type=printer_type, status="duplicate", detail="ack only"
         )
         state.save()
         return
@@ -133,6 +154,10 @@ async def _handle_print_job(
         )
         state.record_processed(job_id, printed_at=None)
         state.save()
+        logger_mod.record(
+            job_id=job_id, printer_type=printer_type, status="failed", detail=f"{e.code}: {e.message}"
+        )
+        _emit(on_status, STATUS_PRINT_FAILED, e.code)
         return
 
     try:
@@ -150,6 +175,10 @@ async def _handle_print_job(
         )
         state.record_processed(job_id, printed_at=None)
         state.save()
+        logger_mod.record(
+            job_id=job_id, printer_type=printer_type, status="failed", detail=f"{e.code}: {e.message}"
+        )
+        _emit(on_status, STATUS_PRINT_FAILED, e.code)
         return
     except Exception as e:  # pragma: no cover — 예상치 못한 모든 오류 흡수
         log.exception("job_id=%d unexpected error", job_id)
@@ -163,6 +192,10 @@ async def _handle_print_job(
         )
         state.record_processed(job_id, printed_at=None)
         state.save()
+        logger_mod.record(
+            job_id=job_id, printer_type=printer_type, status="failed", detail=f"UNKNOWN: {e}"
+        )
+        _emit(on_status, STATUS_PRINT_FAILED, "UNKNOWN")
         return
 
     printed_at = _iso_now()
@@ -170,10 +203,18 @@ async def _handle_print_job(
     state.save()
     await _send_ack(ws, job_id=job_id, status="printed", printed_at=printed_at)
     log.info("job_id=%d printed (%d bytes)", job_id, len(data))
+    logger_mod.record(
+        job_id=job_id, printer_type=printer_type, status="printed", detail=f"{len(data)}B"
+    )
+    # 연결은 정상 — 출력 실패 상태에서 돌아왔다면 connected 로 복귀
+    _emit(on_status, STATUS_CONNECTED, "")
 
 
 async def _message_loop(
-    ws: websockets.WebSocketClientProtocol, cfg: AppConfig, state: State
+    ws: websockets.WebSocketClientProtocol,
+    cfg: AppConfig,
+    state: State,
+    on_status: StatusCallback | None,
 ) -> None:
     async for raw in ws:
         text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else raw
@@ -188,13 +229,11 @@ async def _message_loop(
             await _send_json(ws, {"type": "pong"})
             continue
         if msg_type == "print_job":
-            # 동시 처리 — 출력은 to_thread, 다음 메시지/ping 은 즉시 받음.
-            asyncio.create_task(_handle_print_job(msg, ws, cfg, state))
+            asyncio.create_task(_handle_print_job(msg, ws, cfg, state, on_status))
             continue
         if msg_type == "auth_fail":
             reason = msg.get("reason", "")
             log.error("auth_fail received: %s", reason)
-            # close 가 곧 따라옴 — 루프 종료 대기
             continue
         if msg_type == "auth_ok":
             log.warning("late auth_ok ignored")
@@ -202,8 +241,11 @@ async def _message_loop(
         log.debug("unknown message type=%r", msg_type)
 
 
-async def _connect_once(cfg: AppConfig, state: State) -> int | None:
+async def _connect_once(
+    cfg: AppConfig, state: State, on_status: StatusCallback | None
+) -> int | None:
     """1회 접속 + auth + 메시지 루프. 종료된 close code 를 반환 (없으면 None)."""
+    _emit(on_status, STATUS_CONNECTING, cfg.server.ws_url)
     async with websockets.connect(
         cfg.server.ws_url,
         open_timeout=10,
@@ -232,15 +274,22 @@ async def _connect_once(cfg: AppConfig, state: State) -> int | None:
             first.get("client_id"),
             first.get("shop_id"),
         )
+        _emit(on_status, STATUS_CONNECTED, f"shop_id={first.get('shop_id')}")
 
         try:
-            await _message_loop(ws, cfg, state)
+            await _message_loop(ws, cfg, state, on_status)
         except ConnectionClosed as e:
             return e.code
         return ws.close_code
 
 
-async def run(cfg: AppConfig, state: State, *, stop_event: asyncio.Event | None = None) -> None:
+async def run(
+    cfg: AppConfig,
+    state: State,
+    *,
+    stop_event: asyncio.Event | None = None,
+    on_status: StatusCallback | None = None,
+) -> None:
     """무한 재접속 루프. stop_event 가 set 되면 즉시 종료."""
     if stop_event is None:
         stop_event = asyncio.Event()
@@ -249,31 +298,36 @@ async def run(cfg: AppConfig, state: State, *, stop_event: asyncio.Event | None 
     while not stop_event.is_set():
         wait_s: float
         try:
-            close_code = await _connect_once(cfg, state)
+            close_code = await _connect_once(cfg, state, on_status)
             log.info("connection closed code=%s", close_code)
             if close_code in AUTH_FAIL_CLOSE_CODES:
                 log.error("auth-related close code %s — %ds 대기 후 재시도", close_code, AUTH_ERROR_WAIT_S)
+                _emit(on_status, STATUS_AUTH_FAILED, f"close={close_code}")
                 wait_s = AUTH_ERROR_WAIT_S
             elif close_code == REPLACED_CLOSE_CODE:
                 log.warning("replaced by new connection — %ds 대기 후 재시도", REPLACED_WAIT_S)
+                _emit(on_status, STATUS_DISCONNECTED, "replaced")
                 wait_s = REPLACED_WAIT_S
             else:
+                _emit(on_status, STATUS_DISCONNECTED, f"close={close_code}")
                 wait_s = backoff
                 backoff = min(backoff * 2, BACKOFF_MAX_S)
         except ConnectionClosed as e:
             log.warning("connection closed during handshake code=%s — backoff %ds", e.code, backoff)
+            _emit(on_status, STATUS_DISCONNECTED, f"close={e.code}")
             wait_s = backoff
             backoff = min(backoff * 2, BACKOFF_MAX_S)
         except (OSError, asyncio.TimeoutError) as e:
             log.warning("connect failed: %s — backoff %ds", e, backoff)
+            _emit(on_status, STATUS_DISCONNECTED, str(e)[:60])
             wait_s = backoff
             backoff = min(backoff * 2, BACKOFF_MAX_S)
-        except Exception:  # pragma: no cover
+        except Exception as e:  # pragma: no cover
             log.exception("unexpected error in connect loop — backoff %ds", backoff)
+            _emit(on_status, STATUS_DISCONNECTED, str(e)[:60])
             wait_s = backoff
             backoff = min(backoff * 2, BACKOFF_MAX_S)
         else:
-            # 정상 close (auth-fail / replaced 제외) 후에도 백오프 1 부터 재시작
             if wait_s == backoff and close_code in (1000, 1001, None):
                 backoff = BACKOFF_INITIAL_S
 

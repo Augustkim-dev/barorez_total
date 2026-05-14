@@ -1,4 +1,7 @@
 # Phase 3 D012 — 단독 출력 단위는 stdlib + pywin32.
 # Phase 3 D013 — WS 클라이언트 시점에 websockets 추가.
+# Phase 3 D014 — 트레이 UI + 아이콘 합성용 Pillow 추가.
 pywin32>=306
 websockets>=12.0
+pystray>=0.19
+Pillow>=10
