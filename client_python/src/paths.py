@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,8 +59,23 @@ def repo_dev_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def exe_dir() -> Path | None:
+    """PyInstaller frozen (.exe) 모드일 때 .exe 가 위치한 폴더."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return None
+
+
 def resolve(explicit_config: str | os.PathLike | None) -> DataPaths:
-    """config.ini 경로 결정 → 그 폴더를 데이터 루트로 사용."""
+    """config.ini 경로 결정 → 그 폴더를 데이터 루트로 사용.
+
+    검색 순서:
+    1. --config 인자
+    2. %LOCALAPPDATA%\\barorez-printer\\config.ini
+    3. (frozen) .exe 와 같은 폴더의 config.ini  ← 점주용 가이드의 표준 배치
+    4. (개발) <repo>/client_python/config.ini
+    5. 모두 없으면 LOCALAPPDATA 위치 반환 (호출자가 FileNotFoundError 처리)
+    """
     if explicit_config:
         cfg = Path(explicit_config).resolve()
         return DataPaths.from_root(cfg.parent, config_name=cfg.name)
@@ -68,9 +84,14 @@ def resolve(explicit_config: str | os.PathLike | None) -> DataPaths:
     if appdata_cfg.exists():
         return DataPaths.from_root(appdata_cfg.parent)
 
+    side = exe_dir()
+    if side is not None:
+        side_cfg = side / "config.ini"
+        if side_cfg.exists():
+            return DataPaths.from_root(side)
+
     dev_cfg = repo_dev_root() / "config.ini"
     if dev_cfg.exists():
         return DataPaths.from_root(dev_cfg.parent)
 
-    # 둘 다 없음 — 우선 운영 위치를 반환 (호출자가 FileNotFoundError 처리)
     return DataPaths.from_root(localappdata_root())
