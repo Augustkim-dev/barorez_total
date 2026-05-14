@@ -74,6 +74,7 @@ class TrayController:
     logs_dir: Path
     app_version: str
     state_lock: threading.Lock
+    shop_label: str = ""
     current_status: str = "connecting"
     current_detail: str = ""
     started_at: float = 0.0
@@ -91,9 +92,10 @@ class TrayController:
 
     def _tooltip(self) -> str:
         label = _LABELS.get(self.current_status, self.current_status)
+        shop = f"[{self.shop_label}] " if self.shop_label else ""
         if self.current_detail:
-            return f"barorez-printer · {label} ({self.current_detail})"
-        return f"barorez-printer · {label}"
+            return f"{shop}barorez-printer · {label} ({self.current_detail})"
+        return f"{shop}barorez-printer · {label}"
 
     def _recent_entries_text(self) -> list[str]:
         entries = logger_mod.recent_buffer().snapshot()
@@ -178,9 +180,11 @@ def build(
     app_version: str,
     on_reconnect: Callable[[], None],
     on_quit: Callable[[], None],
+    shop_label: str = "",
 ) -> TrayController:
     icon_image = _make_icon("connecting")
-    icon = pystray.Icon("barorez-printer", icon_image, title="barorez-printer · 시작 중")
+    title_prefix = f"[{shop_label}] " if shop_label else ""
+    icon = pystray.Icon("barorez-printer", icon_image, title=f"{title_prefix}barorez-printer · 시작 중")
     controller = TrayController(
         icon=icon,
         on_reconnect=on_reconnect,
@@ -188,6 +192,7 @@ def build(
         logs_dir=logs_dir,
         app_version=app_version,
         state_lock=threading.Lock(),
+        shop_label=shop_label,
         started_at=time.time(),
     )
     icon.menu = controller._build_menu()

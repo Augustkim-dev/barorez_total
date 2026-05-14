@@ -17,7 +17,7 @@ import sys
 import threading
 from pathlib import Path
 
-APP_VERSION = "0.1.0-d014"
+APP_VERSION = "0.1.0-d016"
 
 
 def _resolve_imports():
@@ -66,9 +66,11 @@ async def _amain(cfg_arg: str | None, with_tray: bool) -> int:
         return 2
 
     state = state_mod.State.load(data.state_file)
+    shop_tag = f"{cfg.client.shop_idx}/{cfg.client.shop_name}" if cfg.client.shop_name else str(cfg.client.shop_idx)
     log.info(
-        "barorez-printer starting (version=%s, client_idx=%d, last_known_job_id=%s, data=%s)",
+        "barorez-printer starting (version=%s, shop=%s, client_idx=%d, last_known_job_id=%s, data=%s)",
         APP_VERSION,
+        shop_tag,
         cfg.client.client_idx,
         state.last_known_job_id,
         data.root,
@@ -108,6 +110,7 @@ async def _amain(cfg_arg: str | None, with_tray: bool) -> int:
             app_version=APP_VERSION,
             on_reconnect=_request_reconnect_threadsafe,
             on_quit=_request_stop_threadsafe,
+            shop_label=shop_tag,
         )
         tray_thread = tray_mod.run_in_thread(tray_controller)
         log.info("tray UI started")

@@ -52,7 +52,14 @@ def _post_json(base_url: str, path: str, cookie: str, body: dict) -> tuple[int, 
         conn.close()
 
 
-def _write_config(config_path: Path, client_idx: int, token: str, capabilities: list[str]) -> None:
+def _write_config(
+    config_path: Path,
+    client_idx: int,
+    token: str,
+    capabilities: list[str],
+    shop_idx: int,
+    shop_name: str,
+) -> None:
     cp = configparser.ConfigParser()
     if config_path.exists():
         cp.read(config_path, encoding="utf-8")
@@ -61,8 +68,11 @@ def _write_config(config_path: Path, client_idx: int, token: str, capabilities: 
     cp.set("client", "client_idx", str(client_idx))
     cp.set("client", "token", token)
     cp.set("client", "capabilities", ", ".join(capabilities))
+    cp.set("client", "shop_idx", str(shop_idx))
+    if shop_name:
+        cp.set("client", "shop_name", shop_name)
     if not cp.has_option("client", "app_version"):
-        cp.set("client", "app_version", "0.1.0-d013")
+        cp.set("client", "app_version", "0.1.0-d016")
 
     with config_path.open("w", encoding="utf-8") as f:
         cp.write(f)
@@ -83,6 +93,11 @@ def main(argv: list[str] | None = None) -> int:
         "--write-config",
         default=None,
         help="발급 결과를 config.ini 에 자동 기록 (경로)",
+    )
+    parser.add_argument(
+        "--shop-name",
+        default="",
+        help="config.ini 에 기록할 매장 표시 이름 (운영자가 식별용)",
     )
     args = parser.parse_args(argv)
 
@@ -116,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.write_config:
         cfg_path = Path(args.write_config)
         cfg_path.parent.mkdir(parents=True, exist_ok=True)
-        _write_config(cfg_path, client_idx, plain_token, caps_raw)
+        _write_config(cfg_path, client_idx, plain_token, caps_raw, args.shop, args.shop_name)
         print(f"-> wrote {cfg_path}")
 
     return 0

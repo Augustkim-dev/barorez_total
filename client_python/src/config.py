@@ -28,6 +28,8 @@ class ClientConfig:
     token: str
     capabilities: tuple[str, ...]
     app_version: str
+    shop_idx: int  # 메타 — 서버에는 전송되지 않음
+    shop_name: str  # 메타 — 로그/트레이 표시용
 
 
 @dataclass(frozen=True)
@@ -75,8 +77,12 @@ def load(path: str | Path) -> AppConfig:
             token=c_sec.get("token", "").strip(),
             capabilities=_split_csv(c_sec.get("capabilities", "")),
             app_version=c_sec.get("app_version", "").strip() or "unknown",
+            shop_idx=int(c_sec.get("shop_idx", "0") or "0"),
+            shop_name=c_sec.get("shop_name", "").strip(),
         )
     else:
-        client = ClientConfig(client_idx=0, token="", capabilities=(), app_version="unknown")
+        client = ClientConfig(
+            client_idx=0, token="", capabilities=(), app_version="unknown", shop_idx=0, shop_name=""
+        )
 
     return AppConfig(server=server, client=client, printer=printer)
