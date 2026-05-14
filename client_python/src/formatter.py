@@ -50,10 +50,21 @@ BODY_SIZE_MAP = {
     "double_wh": (DOUBLE_WH, 2),  # 가로·세로 모두 2배 — 유효 폭 절반
 }
 
-# 가격 표시 컬럼 폭
-_QTY_COL_W = 3  # "999"
-_PRICE_COL_W = 7  # "999,999"
+# 컬럼 폭 (가격 없는 페이로드용 — 메뉴명 + 수량만)
+_QTY_ONLY_COL_W = 3  # "999"
+
+# 4컬럼 표 (가격 있는 페이로드용) — 메뉴명/단가/수량/금액
+# "15,000원" = 6 + 2 ('원') = 8폭, "99개" = 2 + 2 = 4폭, "999,000원" = 9폭
+_UNIT_PRICE_COL_W = 8
+_PRICED_QTY_COL_W = 4
+_LINE_TOTAL_COL_W = 9
 _COL_GAP = 1
+
+_HEADER_NAME = "메뉴명"
+_HEADER_UNIT = "단가"
+_HEADER_QTY = "수량"
+_HEADER_TOTAL = "금액"
+_TOTAL_LABEL = "합계"
 
 
 def _display_width(s: str) -> int:
@@ -203,44 +214,73 @@ def build(
     items: list[dict[str, Any]] = list(payload.get("items") or [])
     has_price, computed_total = _resolve_prices(items)
 
+    # 가격 있는 페이로드 — 컬럼 헤더 라인 추가 (구분선 직전에 이미 분리 라인 있음)
+    if has_price:
+        name_col = effective_width - _UNIT_PRICE_COL_W - _PRICED_QTY_COL_W - _LINE_TOTAL_COL_W - (_COL_GAP * 3)
+        priced_layout_ok = name_col >= 6  # 메뉴명 최소 6폭 (한글 3자)
+    else:
+        priced_layout_ok = False
+        name_col = 0  # not used
+
+    # 컬럼 헤더 (가격 있을 때만)
+    if priced_layout_ok:
+        # 메뉴명 좌측 + 단가/수량/금액 우측 정렬
+        # 메뉴 라인의 컬럼 위치와 정확히 일치하도록 동일 폭 사용
+        header_line = (
+            _pad_right(_HEADER_NAME, name_col)
+            + (" " * _COL_GAP)
+            + _pad_left(_HEADER_UNIT, _UNIT_PRICE_COL_W)
+            + (" " * _COL_GAP)
+            + _pad_left(_HEADER_QTY, _PRICED_QTY_COL_W)
+            + (" " * _COL_GAP)
+            + _pad_left(_HEADER_TOTAL, _LINE_TOTAL_COL_W)
+        )
+        # 구분선 직전에 헤더 한 줄 — 위 코드에서 이미 구분선이 찍혀 있어 그것을
+        # 살리고 헤더는 그 다음에 둠. 헤더 + 새 구분선 1줄 추가.
+        buf += _encode(header_line, codepage)
+        buf += LF
+        buf += _encode(_separator(effective_width), codepage)
+        buf += LF
+
     # 메뉴 라인
-    for item in items:
+    for idx, item in enumerate(items):
         name = str(item.get("name") or "")
         qty = int(item.get("qty") or 0)
-        qty_str = str(qty)
 
-        if has_price:
+        if priced_layout_ok:
             up = item.get("unit_price") if item.get("unit_price") is not None else item.get("price")
             try:
                 up_int = int(up) if up is not None else 0
             except (TypeError, ValueError):
                 up_int = 0
-            line_total_str = _money(up_int * qty) if up_int > 0 else ""
+            unit_str = (_money(up_int) + "원") if up_int > 0 else ""
+            qty_str = f"{qty}개"
+            line_total_str = (_money(up_int * qty) + "원") if up_int > 0 else ""
 
-            # 메뉴명 컬럼 = 유효폭 - 수량(3) - 가격(7) - 갭(2)
-            name_col = effective_width - _QTY_COL_W - _PRICE_COL_W - (_COL_GAP * 2)
-            if name_col < 4:
-                name_col = max(1, effective_width - _QTY_COL_W - _COL_GAP)
-                line = (
-                    _pad_right(_truncate(name, name_col), name_col)
-                    + (" " * _COL_GAP)
-                    + _pad_left(qty_str, _QTY_COL_W)
-                )
-            else:
-                line = (
-                    _pad_right(_truncate(name, name_col), name_col)
-                    + (" " * _COL_GAP)
-                    + _pad_left(qty_str, _QTY_COL_W)
-                    + (" " * _COL_GAP)
-                    + _pad_left(line_total_str, _PRICE_COL_W)
-                )
-        else:
-            # 가격 없음 — 메뉴명 + 수량만
-            name_col = effective_width - _QTY_COL_W - _COL_GAP
             line = (
                 _pad_right(_truncate(name, name_col), name_col)
                 + (" " * _COL_GAP)
-                + _pad_left(qty_str, _QTY_COL_W)
+                + _pad_left(unit_str, _UNIT_PRICE_COL_W)
+                + (" " * _COL_GAP)
+                + _pad_left(qty_str, _PRICED_QTY_COL_W)
+                + (" " * _COL_GAP)
+                + _pad_left(line_total_str, _LINE_TOTAL_COL_W)
+            )
+        elif has_price:
+            # 가격 있으나 폭이 부족 — 메뉴명 + 수량만 (fallback)
+            fb_col = effective_width - _QTY_ONLY_COL_W - _COL_GAP
+            line = (
+                _pad_right(_truncate(name, fb_col), fb_col)
+                + (" " * _COL_GAP)
+                + _pad_left(str(qty), _QTY_ONLY_COL_W)
+            )
+        else:
+            # 가격 없음 — 기존 형식 (메뉴명 + 수량)
+            fb_col = effective_width - _QTY_ONLY_COL_W - _COL_GAP
+            line = (
+                _pad_right(_truncate(name, fb_col), fb_col)
+                + (" " * _COL_GAP)
+                + _pad_left(str(qty), _QTY_ONLY_COL_W)
             )
 
         buf += BOLD_ON
@@ -252,6 +292,10 @@ def build(
         for opt in item.get("options") or []:
             opt_line = "  - " + _truncate(str(opt), effective_width - 4)
             buf += _encode(opt_line, codepage)
+            buf += LF
+
+        # 메뉴 사이 줄간격 — 마지막 메뉴 뒤에는 생략 (어차피 다음 구분선과 붙음)
+        if idx < len(items) - 1:
             buf += LF
 
     # 합계 (가격이 있을 때만)
@@ -267,12 +311,11 @@ def build(
     if total is not None and total > 0:
         buf += _encode(_separator(effective_width), codepage)
         buf += LF
-        total_label = "합계"
-        total_str = _money(total)
-        gap = effective_width - _display_width(total_label) - len(total_str)
+        total_str = _money(total) + "원"
+        gap = effective_width - _display_width(_TOTAL_LABEL) - _display_width(total_str)
         gap = max(1, gap)
         buf += BOLD_ON
-        buf += _encode(total_label + (" " * gap) + total_str, codepage)
+        buf += _encode(_TOTAL_LABEL + (" " * gap) + total_str, codepage)
         buf += BOLD_OFF
         buf += LF
 
