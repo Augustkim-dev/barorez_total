@@ -13,6 +13,7 @@ class PrinterConfig:
     codepage: str
     width: int
     escpos_codepage_id: int | None
+    right_margin: int
 
 
 @dataclass(frozen=True)
@@ -36,5 +37,6 @@ def load(path: str | Path) -> AppConfig:
             codepage=section.get("codepage", "cp949").strip(),
             width=int(section.get("width", "48")),
             escpos_codepage_id=int(raw_id) if raw_id else None,
+            right_margin=int(section.get("right_margin", "2")),
         )
     )

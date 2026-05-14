@@ -104,14 +104,23 @@ def build(
     codepage: str = "cp949",
     width: int = 48,
     escpos_codepage_id: int | None = None,
+    right_margin: int = 2,
 ) -> bytes:
-    """페이로드 dict 를 ESC/POS 바이트열로 변환."""
+    """페이로드 dict 를 ESC/POS 바이트열로 변환.
+
+    right_margin 만큼 우측을 비워두기 위해 모든 라인의 유효 폭을
+    `width - right_margin` 으로 줄여 출력한다 (구분선·정렬 모두 동일 적용).
+    """
+    effective_width = max(1, width - max(0, right_margin))
+
     buf = bytearray()
     buf += INIT
 
     # 펌웨어 측 코드페이지 선택 (옵션)
     if escpos_codepage_id is not None:
         buf += ESC + b"t" + bytes([escpos_codepage_id & 0xFF])
+
+    width = effective_width
 
     # 헤더 — 출력 종류 (가운데, 가로·세로 2배)
     label = PRINTER_TYPE_LABEL.get(printer_type, printer_type)
