@@ -56,9 +56,9 @@ if exist dist\barorez-printer.exe (
     echo Size:   %EXE_SIZE% bytes
     echo.
     echo Next steps:
-    echo   1) Copy dist\barorez-printer.exe to a target PC
-    echo   2) Place config.ini next to the exe (or under %%LOCALAPPDATA%%\barorez-printer\)
-    echo   3) Run barorez-printer.exe and look for the tray icon
+    echo   1. Copy dist\barorez-printer.exe to a target PC
+    echo   2. Place config.ini next to the exe ^(or under %%LOCALAPPDATA%%\barorez-printer\^)
+    echo   3. Run barorez-printer.exe and look for the tray icon
 ) else (
     echo [error] dist\barorez-printer.exe not produced.
     exit /b 1
