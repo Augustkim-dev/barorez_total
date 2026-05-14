@@ -4,7 +4,29 @@ Phase 3 — Windows 매장 PC 용 영수증 출력 클라이언트 **프로토�
 양산 빌드는 Phase 5 에서 C# 으로 다시 작성됨. 본 디렉터리는 흐름·인코딩·
 드라이버 호환성 검증이 목적.
 
-## D012 범위 (현재)
+## 단위 진행 상황
+
+| 단위 | 내용 | 상태 |
+|---|---|---|
+| D012 | RAW 출력 단독 + ESC/POS 포맷터 | 완료 |
+| D013 | WS 클라이언트 + 인증 + 재접속 + ACK | 완료 |
+| D014 | 트레이 UI + 로그 일별 로테이션 + 자동 시작 | 완료 |
+| D015 | PyInstaller .exe + 설치 가이드 + 모의 검증 | 진행 중 |
+| D016 | 베타 매장 1주 운영 | 대기 |
+
+## PyInstaller 빌드 (D015)
+
+```powershell
+cd client_python
+.\build.bat
+# 결과물: client_python\dist\barorez-printer.exe
+```
+
+빌드된 `.exe` + `config.ini` 를 별도 PC 에 복사해 그 PC 에서만 `python` 설치 없이
+바로 실행할 수 있어야 모의 검증 게이트 통과. 점주용 가이드:
+[docs/operations/베타_설치가이드.md](../docs/operations/베타_설치가이드.md)
+
+## D012~D014 범위 상세
 
 - ESC/POS 페이로드 변환 (`src/formatter.py`)
 - Print Spooler RAW 모드 출력 어댑터 (`src/printer.py`)

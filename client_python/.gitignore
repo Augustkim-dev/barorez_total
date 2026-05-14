@@ -5,7 +5,9 @@ __pycache__/
 venv/
 build/
 dist/
+build_entry.py
 *.spec.bak
 config.ini
 *.log
 state/
+logs/

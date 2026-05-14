@@ -86,14 +86,16 @@ def setup(logs_dir: str | Path, *, level: int = logging.INFO) -> logging.Logger:
 
     formatter = logging.Formatter(_LOG_FORMAT, datefmt=_LOG_DATEFMT)
 
-    # stdout — UTF-8 강제 (Windows CP949 콘솔 회피)
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
-    except (AttributeError, OSError):
-        pass
-    stream = logging.StreamHandler(sys.stdout)
-    stream.setFormatter(formatter)
-    root.addHandler(stream)
+    # stdout — UTF-8 강제 (Windows CP949 콘솔 회피).
+    # PyInstaller --noconsole 빌드에서는 sys.stdout 이 None 일 수 있어 가드.
+    if sys.stdout is not None:
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+        except (AttributeError, OSError):
+            pass
+        stream = logging.StreamHandler(sys.stdout)
+        stream.setFormatter(formatter)
+        root.addHandler(stream)
 
     # 일별 로테이션 — when='midnight' 로 자정 회전, suffix 로 YYYY-MM-DD 부여
     base_file = log_path / "current.log"

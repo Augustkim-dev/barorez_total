@@ -27,6 +27,11 @@ REG_VALUE_NAME = "barorez-printer"
 REG_RUN_PATH = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 
+def _is_frozen() -> bool:
+    """PyInstaller .exe 로 빌드된 상태인지."""
+    return bool(getattr(sys, "frozen", False))
+
+
 def _pythonw_path() -> str:
     """현재 venv 의 pythonw.exe (콘솔 창 없이 실행). 없으면 python.exe."""
     base = Path(sys.executable)
@@ -37,9 +42,15 @@ def _pythonw_path() -> str:
 
 
 def _build_command(config_path: str | None) -> str:
+    # frozen (.exe) 모드 — sys.executable 이 이미 진입점.
+    if _is_frozen():
+        parts = [f'"{sys.executable}"']
+        if config_path:
+            parts.extend(["--config", _shell_escape(config_path)])
+        return " ".join(parts)
+
+    # 개발 모드 — pythonw.exe + sys.path 보강으로 client_python 패키지 진입.
     py = _pythonw_path()
-    # python -m 은 cwd 의 패키지를 찾으므로, 저장소 루트를 cwd 로 지정해야 함.
-    # 레지스트리 RUN 항목은 cwd 를 설정할 수 없으므로 -c 로 sys.path 보강.
     repo_root = str(Path(__file__).resolve().parents[2])
     cmd_inner = (
         f"import sys; sys.path.insert(0, r'{repo_root}'); "
