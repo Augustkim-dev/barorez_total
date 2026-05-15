@@ -9,7 +9,7 @@ REM   build.bat
 REM
 REM Output: client_python\dist\barorez-printer.exe
 
-setlocal
+setlocal EnableDelayedExpansion
 
 cd /d "%~dp0"
 
@@ -53,7 +53,7 @@ if exist dist\barorez-printer.exe (
     for %%F in (dist\barorez-printer.exe) do set EXE_SIZE=%%~zF
     echo === build success ===
     echo Output: %CD%\dist\barorez-printer.exe
-    echo Size:   %EXE_SIZE% bytes
+    echo Size:   !EXE_SIZE! bytes
     echo.
     echo Next steps:
     echo   1. Copy dist\barorez-printer.exe to a target PC
