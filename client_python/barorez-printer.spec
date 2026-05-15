@@ -39,6 +39,9 @@ a = Analysis(
         'pywintypes',
         'websockets.legacy.client',
         'websockets.asyncio.client',
+        # certifi — wss:// CA 번들. PyInstaller 의 certifi hook 이 자동으로
+        # cacert.pem 을 datas 에 추가하지만 hiddenimport 도 안전을 위해 명시.
+        'certifi',
     ],
     hookspath=[],
     hooksconfig={},

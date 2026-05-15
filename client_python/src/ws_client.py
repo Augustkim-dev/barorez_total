@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import ssl
 from datetime import datetime, timezone
 from typing import Any, Callable
 
@@ -46,6 +47,19 @@ def _emit(cb: StatusCallback | None, status: str, detail: str = "") -> None:
         cb(status, detail)
     except Exception:  # pragma: no cover — tray 콜백 오류는 ws 루프를 막지 않음
         log.exception("status callback failed")
+
+
+def _build_ssl_context() -> ssl.SSLContext:
+    """wss:// 용 SSL 컨텍스트. certifi 의 CA 번들을 우선 사용 — PyInstaller
+    frozen .exe 가 시스템 CA 없는 PC 에 옮겨가도 핸드셰이크 가능.
+    """
+    try:
+        import certifi  # type: ignore[import-not-found]
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        # certifi 가 없으면 OS 기본 CA — 개발 환경 폴백
+        return ssl.create_default_context()
 
 log = get_logger("barorez.ws")
 
@@ -247,12 +261,18 @@ async def _connect_once(
 ) -> int | None:
     """1회 접속 + auth + 메시지 루프. 종료된 close code 를 반환 (없으면 None)."""
     _emit(on_status, STATUS_CONNECTING, cfg.server.ws_url)
+
+    ssl_ctx: ssl.SSLContext | None = None
+    if cfg.server.ws_url.lower().startswith("wss://"):
+        ssl_ctx = _build_ssl_context()
+
     async with websockets.connect(
         cfg.server.ws_url,
         open_timeout=10,
         ping_interval=None,  # Server C 가 ping 을 보내므로 클라이언트 측 ping 비활성화
         ping_timeout=None,
         max_size=2**20,
+        ssl=ssl_ctx,
     ) as ws:
         log.info("connected to %s", cfg.server.ws_url)
         await _send_auth(ws, cfg, state)

@@ -1,7 +1,10 @@
 # Phase 3 D012 — 단독 출력 단위는 stdlib + pywin32.
 # Phase 3 D013 — WS 클라이언트 시점에 websockets 추가.
 # Phase 3 D014 — 트레이 UI + 아이콘 합성용 Pillow 추가.
+# Phase 3 D016+ — PyInstaller frozen .exe 에서 wss:// 핸드셰이크 시 시스템
+#                 CA 가 없는 PC 에서도 동작하도록 certifi 번들 동봉.
 pywin32>=306
 websockets>=12.0
 pystray>=0.19
 Pillow>=10
+certifi>=2024.0
