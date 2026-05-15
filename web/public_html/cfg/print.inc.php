@@ -86,20 +86,40 @@ function create_print_jobs_for_order(int $order_idx): array {
  * orders_t.ct_snapshot 의 unit_price 와 summary 를 그대로 전달.
  * 클라이언트 (Python formatter) 는 가격 필드가 있을 때만 가격 컬럼·
  * 합계 라인을 출력 — 없으면 수량만 표시 (하위 호환).
+ *
+ * 테이블 번호: orders_t.ot_table 은 사실 shop_table_t.idx 값이라
+ * (app/index.php 의 의도적 설계, CLAUDE.md 참조), 영수증 표시용으로는
+ * shop_table_t.tb_name 으로 변환하여 전달.
+ *
+ * 옵션: ct_snapshot 의 options 는 dict 배열({om_idx,option_name,option_price,...})
+ * 이라 그대로 보내면 클라이언트가 dict repr 로 출력. 사람 읽기 가능
+ * 문자열 리스트로 변환 — 가격>0 인 옵션은 '이름 +N원' suffix.
  */
 function build_print_payload(array $order, string $printer_type, array $items): array {
+    global $DB;
     $snapshot = json_decode($order['ct_snapshot'] ?? '{}', true) ?: [];
     $summary  = $snapshot['summary'] ?? null;
 
+    // ot_table (= shop_table_t.idx) → tb_name 변환
+    $table_display = (string)($order['ot_table'] ?? '-');
+    $st_idx = (int)($order['ot_table'] ?? 0);
+    if ($st_idx > 0) {
+        $DB->where('idx', $st_idx);
+        $row = $DB->getOne('shop_table_t', null, 'tb_name');
+        if ($row && !empty($row['tb_name'])) {
+            $table_display = (string)$row['tb_name'];
+        }
+    }
+
     return [
         'printer_type' => $printer_type,
-        'table_name'   => $order['ot_table'] ?? null,
+        'table_name'   => $table_display,
         'order_time'   => $order['ot_wdate'] ?? date('Y-m-d H:i:s'),
         'items'        => array_map(function($i) {
             $line = [
                 'name'    => $i['menu_name'] ?? '',
                 'qty'     => (int)($i['quantity'] ?? 1),
-                'options' => $i['options'] ?? [],
+                'options' => _print_format_options($i['options'] ?? []),
             ];
             if (isset($i['unit_price'])) {
                 $line['unit_price'] = (int)$i['unit_price'];
@@ -115,6 +135,31 @@ function build_print_payload(array $order, string $printer_type, array $items): 
             'total'     => isset($summary['total'])     ? (int)$summary['total']     : null,
         ] : null,
     ];
+}
+
+/**
+ * 옵션 배열 → 영수증 표시용 문자열 리스트.
+ *
+ * 입력: ct_snapshot.items[].options — dict 배열 (option_name/option_price 포함)
+ *       또는 이미 문자열 배열 (구버전 또는 외부 입력)
+ * 출력: 사람 읽기 가능 문자열 리스트. 가격>0 옵션은 '이름 +N원'.
+ */
+function _print_format_options($opts): array {
+    if (!is_array($opts)) return [];
+    $out = [];
+    foreach ($opts as $opt) {
+        if (is_string($opt)) {
+            $opt = trim($opt);
+            if ($opt !== '') $out[] = $opt;
+            continue;
+        }
+        if (!is_array($opt)) continue;
+        $name  = trim((string)($opt['option_name'] ?? ''));
+        $price = (int)($opt['option_price'] ?? 0);
+        if ($name === '') continue;
+        $out[] = $price > 0 ? sprintf('%s +%s원', $name, number_format($price)) : $name;
+    }
+    return $out;
 }
 
 /**

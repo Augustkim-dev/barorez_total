@@ -288,9 +288,22 @@ def build(
         buf += BOLD_OFF
         buf += LF
 
-        # 옵션 — 들여쓰기
+        # 옵션 — 들여쓰기. PHP 새 형식(string) 우선, 옛 형식(dict) 백워드 호환.
         for opt in item.get("options") or []:
-            opt_line = "  - " + _truncate(str(opt), effective_width - 4)
+            if isinstance(opt, dict):
+                opt_name = str(opt.get("option_name") or "").strip()
+                try:
+                    opt_price = int(opt.get("option_price") or 0)
+                except (TypeError, ValueError):
+                    opt_price = 0
+                if not opt_name:
+                    continue
+                opt_text = f"{opt_name} +{opt_price:,}원" if opt_price > 0 else opt_name
+            else:
+                opt_text = str(opt).strip()
+                if not opt_text:
+                    continue
+            opt_line = "  - " + _truncate(opt_text, effective_width - 4)
             buf += _encode(opt_line, codepage)
             buf += LF
 
