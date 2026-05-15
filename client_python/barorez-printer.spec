@@ -23,11 +23,18 @@ entry_stub.write_text(
     encoding='utf-8',
 )
 
+# certifi 의 cacert.pem 을 datas 로 명시 동봉. pyinstaller-hooks-contrib 의
+# certifi hook 이 자동 처리하지만, hook 누락/버전 차이에 대비해 명시.
+# frozen runtime 에서 certifi.where() 가 sys._MEIPASS\certifi\cacert.pem 을 반환.
+import certifi
+_CACERT = certifi.where()
+_extra_datas = [(_CACERT, 'certifi')]
+
 a = Analysis(
     [str(entry_stub)],
     pathex=[str(HERE.parent)],  # client_python 패키지가 import 가능하도록
     binaries=[],
-    datas=[],
+    datas=_extra_datas,
     hiddenimports=[
         # pystray / Pillow / websockets / pywin32 의 일부 모듈은 PyInstaller
         # hook 으로 자동 감지되지만, 명시해두면 안전.

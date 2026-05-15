@@ -49,16 +49,35 @@ def _emit(cb: StatusCallback | None, status: str, detail: str = "") -> None:
         log.exception("status callback failed")
 
 
+_SSL_DIAG_LOGGED = False
+
+
 def _build_ssl_context() -> ssl.SSLContext:
     """wss:// 용 SSL 컨텍스트. certifi 의 CA 번들을 우선 사용 — PyInstaller
     frozen .exe 가 시스템 CA 없는 PC 에 옮겨가도 핸드셰이크 가능.
+
+    첫 호출 시 cafile 경로 + 존재 여부를 log 에 1회 출력 (frozen .exe 진단용).
     """
+    global _SSL_DIAG_LOGGED
     try:
+        import os
         import certifi  # type: ignore[import-not-found]
 
-        return ssl.create_default_context(cafile=certifi.where())
-    except ImportError:
-        # certifi 가 없으면 OS 기본 CA — 개발 환경 폴백
+        cafile = certifi.where()
+        if not _SSL_DIAG_LOGGED:
+            exists = os.path.isfile(cafile)
+            log.info(
+                "ssl: certifi cafile=%s exists=%s frozen=%s",
+                cafile,
+                exists,
+                getattr(__import__("sys"), "frozen", False),
+            )
+            _SSL_DIAG_LOGGED = True
+        return ssl.create_default_context(cafile=cafile)
+    except ImportError as e:
+        if not _SSL_DIAG_LOGGED:
+            log.warning("ssl: certifi import failed, falling back to OS CA: %s", e)
+            _SSL_DIAG_LOGGED = True
         return ssl.create_default_context()
 
 log = get_logger("barorez.ws")
