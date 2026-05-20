@@ -540,22 +540,29 @@
 
         /* ===== FOOTER ===== */
         .footer {
-            padding: 40px 24px;
+            padding: 48px 24px 32px;
             background: var(--dark);
-            color: rgba(255,255,255,0.5);
-            text-align: center;
+            color: rgba(255,255,255,0.55);
             font-size: 13px;
         }
 
         .footer-inner {
             max-width: 1200px;
             margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 48px;
+            align-items: flex-start;
+        }
+
+        .footer-left,
+        .footer-right {
+            text-align: left;
         }
 
         .footer-logo {
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 8px;
             margin-bottom: 12px;
         }
@@ -569,6 +576,64 @@
             font-size: 16px;
             font-weight: 700;
             color: rgba(255,255,255,0.7);
+        }
+
+        .footer-tagline {
+            font-size: 13px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+
+        .footer-copyright {
+            font-size: 12px;
+            color: rgba(255,255,255,0.35);
+        }
+
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 18px;
+            font-size: 13px;
+        }
+
+        .footer-links a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--white);
+        }
+
+        .footer-divider {
+            color: rgba(255,255,255,0.2);
+            font-size: 11px;
+        }
+
+        .footer-biz {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.85;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .footer-biz-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .footer-biz dt {
+            flex: 0 0 110px;
+            color: rgba(255,255,255,0.4);
+        }
+
+        .footer-biz dd {
+            margin: 0;
+            color: rgba(255,255,255,0.65);
         }
 
         /* ===== RESPONSIVE ===== */
@@ -718,6 +783,42 @@
 
             .join-card {
                 padding: 32px 24px;
+            }
+
+            .footer {
+                padding: 40px 20px 28px;
+            }
+
+            .footer-inner {
+                grid-template-columns: 1fr;
+                gap: 32px;
+                text-align: center;
+            }
+
+            .footer-left,
+            .footer-right {
+                text-align: center;
+            }
+
+            .footer-logo {
+                justify-content: center;
+            }
+
+            .footer-links {
+                justify-content: center;
+            }
+
+            .footer-biz {
+                display: inline-block;
+                text-align: left;
+            }
+
+            .footer-biz-row {
+                gap: 6px;
+            }
+
+            .footer-biz dt {
+                flex: 0 0 96px;
             }
         }
 
@@ -990,11 +1091,51 @@
 <!-- FOOTER -->
 <footer class="footer">
     <div class="footer-inner">
-        <div class="footer-logo">
-            <img src="https://barorez.com/design/img/logo.svg" alt="맛집바로">
-            <span>맛집바로</span>
+        <div class="footer-left">
+            <div class="footer-logo">
+                <img src="https://barorez.com/design/img/logo.svg" alt="맛집바로">
+                <span>맛집바로</span>
+            </div>
+            <p class="footer-tagline">지도에서 찾고 바로 주문하는 맛집 서비스</p>
+            <p class="footer-copyright">&copy; 2026 Coroco Co., Ltd. All rights reserved.</p>
         </div>
-        <p>&copy; 2026 Coroco Co., Ltd. All rights reserved.</p>
+        <div class="footer-right">
+            <nav class="footer-links" aria-label="약관">
+                <a href="https://sites.google.com/view/qrorder-term" target="_blank" rel="noopener">이용약관</a>
+                <span class="footer-divider">|</span>
+                <a href="https://sites.google.com/view/qrorders-privacy" target="_blank" rel="noopener">개인정보처리방침</a>
+                <span class="footer-divider">|</span>
+                <a href="https://sites.google.com/view/qrorder-qeo-term" target="_blank" rel="noopener">위치정보 이용약관</a>
+                <span class="footer-divider">|</span>
+                <a href="#" data-todo="refund-url" target="_blank" rel="noopener">환불정책</a>
+            </nav>
+            <dl class="footer-biz">
+                <div class="footer-biz-row">
+                    <dt>법인명</dt>
+                    <dd>(주)코로코 (Coroco Co., Ltd.)</dd>
+                </div>
+                <div class="footer-biz-row">
+                    <dt>대표</dt>
+                    <dd>임재득, 임영묵</dd>
+                </div>
+                <div class="footer-biz-row">
+                    <dt>사업자등록번호</dt>
+                    <dd>126-86-64275</dd>
+                </div>
+                <div class="footer-biz-row">
+                    <dt>통신판매업</dt>
+                    <dd>제 2015-경기광주-0225 호</dd>
+                </div>
+                <div class="footer-biz-row">
+                    <dt>주소</dt>
+                    <dd>경기도 광주시 경충대로 1845 (장지동)</dd>
+                </div>
+                <div class="footer-biz-row">
+                    <dt>고객센터</dt>
+                    <dd>1855-0759</dd>
+                </div>
+            </dl>
+        </div>
     </div>
 </footer>
 
