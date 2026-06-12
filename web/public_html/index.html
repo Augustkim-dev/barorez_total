@@ -150,6 +150,12 @@
             box-shadow: 0 8px 24px rgba(255, 69, 22, 0.3);
         }
 
+        /* 스토어 버튼(구글|애플) 묶음 폭에 맞춰 '바로 시작하기' 버튼 정렬 */
+        .hero-cta-group {
+            display: inline-flex;
+            flex-direction: column;
+        }
+
         /* ===== HERO ===== */
         .hero {
             padding: 120px 24px 80px;
@@ -701,6 +707,11 @@
                 justify-content: center;
             }
 
+            .hero-cta-group {
+                display: flex;
+                width: 100%;
+            }
+
             .phone-mockup {
                 width: 220px;
                 height: 448px;
@@ -908,6 +919,7 @@
                 내 주변 맛집을 지도에서 찾고,<br>
                 메뉴 확인부터 주문·예약·포장까지 한번에.
             </p>
+            <div class="hero-cta-group">
             <div class="hero-buttons">
                 <a href="https://play.google.com/store/apps/details?id=com.barorez" target="_blank" rel="noopener" class="store-btn">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-1.4l2.834 1.64a1 1 0 0 1 0 1.727l-2.834 1.64-2.526-2.527 2.526-2.48zM5.864 3.458L16.8 9.79l-2.302 2.302-8.634-8.634z"/></svg>
@@ -925,6 +937,7 @@
                 </a>
             </div>
             <a href="https://barorez.com/app" class="btn btn-primary btn-lg btn-block">바로 시작하기</a>
+            </div>
         </div>
         <div class="hero-visual fade-in">
             <div class="phone-mockup">
